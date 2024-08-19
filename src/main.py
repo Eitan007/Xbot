@@ -6,16 +6,33 @@ from datetime import datetime
 import csv
 from configparser import ConfigParser
 from random import randint
-from dotenv import load_dotenv
+import pandas as pd
+import re
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+from geopy.geocoders import Nominatim
 import os
+import sys
 
-follower_count_limit = 10000
-following_count_limit = 5000
-ask_for_username = True
+#primary variables
 patient_0_ID = ''
 patient_0_username = ''
-user_profile_results = None
+
+
+# constants
+raw_score = 90
+scoring_factor = 1.1112
+follower_count_limit = 10000
+following_count_limit = 5000
+
+# logic variables
+new_account = False
+ask_for_username = True
 no_Results = False
+user_profile_results = None
+following_list = None
+follower_list = None
+no_of_follower_profiles = 0
 
 
 # Main function to run the asynchronous code
@@ -38,37 +55,37 @@ def save_cookies_0(client, filename='cookies.json'):
 def load_cookies_0(client, filename='cookies.json'):
     client.load_cookies(filename)
 
-async def search_user_0(query, count):
+async def search_user_0(client, query, count):
     user_profile_results = await client.search_user(query, count)
     #user_profile_results = await client.search_tweet(query,'Top', count)
     return user_profile_results
 
-def search_for_profile():
+async def search_for_profile():
     query = input('Type in username: ').lower()
 
-    user_profile_results = asyncio.run(search_user_0(query, 20))
+    user_profile_results = await search_user_0(query, 20)
     return user_profile_results, query
 
 def append_data_to_csv(entries, name, type):
-    if type is 'raw':
-        with open(f'rawProfiles_{name}.csv', 'a', newline='') as file:
+    if type == 'raw':
+        with open(f'rawProfiles_{name}.csv', 'a', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
             writer.writerow(entries)
 
-    if type is 'fine':
-        with open(f'Profiles_{name}.csv', 'a', newline='') as file:
+    if type == 'fine':
+        with open(f'Profiles_{name}.csv', 'a', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
             writer.writerow(entries)
 
 def create_CSVs(name, type):
     #create csv file for scrapped data
-    if type is 'raw':
-        with open(f'rawProfiles_{name}.csv', 'w', newline='') as file:
+    if type == 'raw':
+        with open(f'rawProfiles_{name}.csv', 'w', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
-            writer.writerow(['Name', 'Username', 'URL', 'Followers', 'Following', 'Tweets', 'Can_DM','Location', 'Joined_X', 'Translator', 'Likes', 'Blue_Tick', 'Profile_Pic'])
+            writer.writerow(['Name', 'Username', 'URL', 'Followers', 'Following', 'Tweets', 'Bio','Can_DM','Location', 'Joined_X', 'Translator', 'Likes', 'Blue_Tick', 'Profile_Pic'])
 
-    if type is 'fine':
-            with open(f'Profiles_{name}.csv', 'w', newline='') as file:
+    if type == 'fine':
+            with open(f'Profiles_{name}.csv', 'w', newline='', encoding='utf-8') as file:
                 writer = csv.writer(file)
                 writer.writerow(['Username', 'Followers', 'Following', 'Tweets', 'URL'])
 
@@ -77,103 +94,376 @@ def random_wait():
     print(f'Waiting for {wait_time} seconds..')
     time.sleep(wait_time)
 
-def filter_profiles_by_Followers_following(profile_list):
-    for follower in profile_list:
-        if follower.followers_count > follower_count_limit or follower.following_count > following_count_limit:
-            continue
-        else:
-            follower_url = f'https://x.com/{follower.screen_name}'
-            user_data = [follower.name, follower.screen_name, follower_url, follower.followers_count, follower.following_count, follower.statuses_count, follower.can_dm, follower.location, follower.created_at, follower.is_translator, follower.favourites_count, follower.is_blue_verified, follower.default_profile_image]
-            append_data_to_csv(user_data, patient_0_username, 'raw')
+def count_csv_entries(name, type):
+    if type == 'raw':
+        with open(f'rawProfiles_{name}.csv', mode='r', encoding='utf-8') as file:
+            csv_reader = csv.reader(file)
+            row_count = sum(1 for row in csv_reader) - 1  
+    if type == 'fine':
+        with open(f'Profiles_{name}.csv', mode='r', encoding='utf-8') as file:
+            csv_reader = csv.reader(file)
+            row_count = sum(1 for row in csv_reader) - 1  
+    return row_count
 
+def filter_profiles_by_Followers_following(user, profile_list):
+    #print(profile_list)
+    if profile_list is not None:
+        if len(profile_list) > 0:
+            for follower in profile_list:
+                if follower.followers_count > follower_count_limit or follower.following_count > following_count_limit:
+                    continue
+                else:
+                    follower_url = f'https://x.com/{follower.screen_name}'
+                    user_data = [follower.name, follower.screen_name, follower_url, follower.followers_count, follower.following_count, follower.statuses_count, follower.description, follower.can_dm, follower.location, follower.created_at_datetime, follower.is_translator, follower.favourites_count, follower.is_blue_verified, follower.default_profile_image]
+                    append_data_to_csv(user_data, user.screen_name, 'raw')
 
+# searches for first user and gets ID
+async def get_patient_0():
+    global patient_0_ID
+    global patient_0_username
 
-# login credentials              
-config = ConfigParser()
-config.read('config.ini')
-username = config['X']['username']
-email = config['X']['email']
-password = config['X']['password']
+    while ask_for_username:
+        # reset search
+        if no_Results:
+            user_profile_results = None
+            no_Results = False
 
-
-# create client
-client = Client(language='en-US')
-
-# Run the main function with asyncio
-#asyncio.run(login_save_cookies(client, username, email, password))
-load_cookies_0(client)
-
-# search user profile
-
-
-while ask_for_username:
-    # reset search
-    if no_Results:
-        user_profile_results = None
-
-    # NETWORK REQUEST
-    # first results search
-    if user_profile_results is None:
-        # get point-zero username ID
-
-        # sleep before making request
-        random_wait()
-        try:
-            Results_and_query = search_for_profile()    # A REQUEST
-        except TooManyRequests as e:
-            limit_reset = datetime.fromtimestamp(e.limit_reset)
-            print(f'Rate limit reached - {datetime.now()}')
-            print(f'Waiting until - {limit_reset}')
-            wait_time = limit_reset - datetime.now()
-            time.sleep(wait_time.total_seconds())
-            continue
-
-        user_profile_results = Results_and_query[0]
-        query = Results_and_query[1]
-        
-        #create csv to store raw data
-        create_CSVs(query, 'raw')
-
-    else:
-        # if there were prev results let scheck for more results 
-        if len(user_profile_results) > 0:
+        # NETWORK REQUEST
+        # first results search
+        if user_profile_results is None:
+            # get point-zero username ID
 
             # sleep before making request
             random_wait()
             try:
-                user_profile_results = asyncio.run(user_profile_results.next())  # A REQUEST
+                Results_and_query = search_for_profile()    # A REQUEST
             except TooManyRequests as e:
-                limit_reset = datetime.fromtimestamp(e.limit_reset)
+                limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
                 print(f'Rate limit reached - {datetime.now()}')
                 print(f'Waiting until - {limit_reset}')
                 wait_time = limit_reset - datetime.now()
                 time.sleep(wait_time.total_seconds())
                 continue
+
+            user_profile_results = Results_and_query[0]
+            query = Results_and_query[1]
             
+        # getting next page
+        else:
+            # if there were prev results let scheck for more results 
+            if len(user_profile_results) > 0:
+
+                # sleep before making request
+                random_wait()
+                try:
+                    user_profile_results = await user_profile_results.next()  # A REQUEST
+                except TooManyRequests as e:
+                    limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
+                    print(f'Rate limit reached - {datetime.now()}')
+                    print(f'Waiting until - {limit_reset}')
+                    wait_time = limit_reset - datetime.now()
+                    time.sleep(wait_time.total_seconds())
+                    continue
+
+        # POST NETWORK REQUEST
+        if len(user_profile_results) > 0:
+            for user in user_profile_results:
+                # check if username matches with user found in search then get id
+                screen_name = user.screen_name
+
+                if query == screen_name:
+                    patient_0_ID = user.id
+                    patient_0_username = user.screen_name
+                    # after finding user, stop asking operator for username
+                    ask_for_username = False
+                    print(f'{query}: USER PROFILE FOUND')
+                    print(patient_0_ID)
+                    print(patient_0_username)
+                    print(vars(user))
+
+                    #create csv to store raw data
+                    create_CSVs(query, 'raw')
+                    break
+            if ask_for_username:
+                print(f"{query}: results don't match username")
+                print(f"{query}: getting next results page")
+
         else:
             no_Results = True
-        
-    # POST NETWORK REQUEST
-    if len(user_profile_results) > 0:
-        for user in user_profile_results:
-            # check if username matches with user found in search then get id
-            screen_name = user.screen_name
+            print(f"{query}: PROFILE NOT FOUND")
+            print(f"{query}: TRY ANOTHER USERNAME")
 
-            if query == screen_name:
-                patient_0_ID = user.id
-                patient_0_username = user.screen_name
-                ask_for_username = False
-                print(vars(user))
+async def get_user_by_username(client):
+    user = None
+    while True:
+        username = input('Type in username: ').lower()
+        random_wait()
+        print('getting username')
+        try:
+            user = await client.get_user_by_screen_name(username) # REQUEST
+        except TooManyRequests as e:
+                    limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
+                    print(f'Rate limit reached - {datetime.now()}')
+                    print(f'Waiting until - {limit_reset}')
+                    wait_time = limit_reset - datetime.now()
+                    time.sleep(wait_time.total_seconds())
+                    continue
+
+        if user is not None:
+            break
+    return user
+
+# retrieve user's followers in safe batches and save to csv
+async def get_user_follower(user):
+    print(f'{user.screen_name}: GETTING FOLLOWERS')
+    global follower_list
+    global no_of_follower_profiles
+    while True:
+        # NETWORK REQUEST
+        # first results search
+        if follower_list is None:
+            # sleep before making request
+            random_wait()
+            try:
+                follower_list = await user.get_followers() # REQUEST
+            except TooManyRequests as e:
+                limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
+                print(f'Rate limit reached - {datetime.now()}')
+                print(f'Waiting until - {limit_reset}')
+                wait_time = limit_reset - datetime.now()
+                time.sleep(wait_time.total_seconds())
+                continue
+
+        # getting next page
+        else:
+            # check if previous search results had users
+            if len(follower_list) > 0:
+                # try getting next results
+                random_wait()
+                try:
+                    print(f'{user.screen_name}: retrieving next batch of profiles')
+                    follower_list = await follower_list.next() # REQUEST
+                except TooManyRequests as e:
+                    limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
+                    print(f'Rate limit reached - {datetime.now()}')
+                    print(f'Waiting until - {limit_reset}')
+                    wait_time = limit_reset - datetime.now()
+                    time.sleep(wait_time.total_seconds())
+                    continue
+
+            # if there are no more users
+            else:
+                no_of_follower_profiles = count_csv_entries(user.screen_name, 'raw')
+                print(f'{user.screen_name}: {no_of_follower_profiles} Profiles collected')
                 break
-        if ask_for_username:
-            print("Results don't match username")
+        
+        # add to filtered users to csv
+        filter_profiles_by_Followers_following(user, follower_list)
 
+# retrieve user's followers in safe batches and save to csv
+async def get_user_following(user):
+    print(f'{user.screen_name}: GETTING FOLLOWINGS')
+    global following_list
+    global no_of_follower_profiles
+    while True:
+        # NETWORK REQUEST
+        # first results search
+        if following_list is None:
+            # sleep before making request
+            random_wait()
+            try:
+                following_list = await user.get_following() # REQUEST
+            except TooManyRequests as e:
+                limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
+                print(f'Rate limit reached - {datetime.now()}')
+                print(f'Waiting until - {limit_reset}')
+                wait_time = limit_reset - datetime.now()
+                time.sleep(wait_time.total_seconds())
+                continue
+
+        # getting next page
+        else:
+            # check if previous search results had users
+            if len(following_list) > 0:
+                # try getting next results
+                random_wait()
+                try:
+                    print(f'{user.screen_name}: retrieving next batch of profiles')
+                    following_list = await following_list.next() # REQUEST
+                except TooManyRequests as e:
+                    limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
+                    print(f'Rate limit reached - {datetime.now()}')
+                    print(f'Waiting until - {limit_reset}')
+                    wait_time = limit_reset - datetime.now()
+                    time.sleep(wait_time.total_seconds())
+                    continue
+
+            # if there are no more users
+            else:
+                no_of_all_profiles = count_csv_entries(user.screen_name, 'raw')
+                no_of_following_profiles = no_of_all_profiles - no_of_follower_profiles 
+                print(f'{user.screen_name}: {no_of_following_profiles} Profiles collected')
+                break
+        
+        # add to filtered users to csv
+        filter_profiles_by_Followers_following(user, following_list)
+
+
+async def main():
+
+    # login credentials              
+    config = ConfigParser()
+    config.read('config.ini')
+    username = config['X']['username']
+    email = config['X']['email']
+    password = config['X']['password']
+
+
+    # create client
+    client = Client(language='en-US')
+
+    # choose whether to login in from scratch or use cookies
+    if new_account:
+        #login and save cookies
+        await client.login(auth_info_1=username, 
+                            auth_info_2=email, 
+                            password=password)
+        client.save_cookies('cookies.json')
     else:
-        print('No Profile Results')
+        load_cookies_0(client)
 
 
-#use patient_0_ID to get followers
-random_wait()
-follower_list = asyncio.run(client.get_user_followers(patient_0_ID)) # REQUEST
 
-filter_profiles_by_Followers_following(follower_list)
+    # get patient_0
+    user =  await get_user_by_username(client)
+    print(f'''
+USERNAME: {user.screen_name}
+DISPLAY NAME: {user.name}
+BIO: {user.description}
+FOLLOWERS: {user.followers_count}
+FOLLOWING: {user.following_count}
+DATE JOINED: {user.created_at_datetime}
+''')
+    # create csv to save raw data
+    create_CSVs(user.screen_name, 'raw')
+
+    #print(vars(user))
+
+    await get_user_follower(user)
+
+    await get_user_following(user)
+
+    # Reading the CSV file into a DataFrame
+    df = pd.read_csv(f'rawProfiles_{user.screen_name}.csv')
+
+    print(df)
+
+# Set default encoding to UTF-8
+sys.stdout.reconfigure(encoding='utf-8')
+
+asyncio.run(main())
+
+
+
+# # SCORING SCRIPT
+# # Define deduction criteria with multiple conditions
+# def scoring_algorithmn():
+#     # deduction criteria
+#     def apply_deduction(row):
+#         # Suspicious keywords and regex patterns
+#         sus_keywords = ['john doe', 'samuel', 'ctrader']
+#         user_regex = re.compile(r'^user\d+[a-zA-Z0-9]+$', re.IGNORECASE)
+
+#         value = row['Raw_Score']
+
+#         # Check if 'Username' contains any suspicious keywords
+#         username_lower = row['Username'].lower()
+#         if any(keyword in username_lower for keyword in sus_keywords):
+#             value -= 10
+
+#         # Check if 'Username' matches the suspicious pattern
+#         if user_regex.match(row['Username']):
+#             value -= 10
+
+#         # Check if 'Bio' contains more than 3 emojis
+#         emoji_pattern = re.compile("["
+#                             u"\U0001F600-\U0001F64F"  # emoticons
+#                             u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+#                             u"\U0001F680-\U0001F6FF"  # transport & map symbols
+#                             u"\U0001F700-\U0001F77F"  # alchemical symbols
+#                             u"\U0001F780-\U0001F7FF"  # Geometric Shapes Extended
+#                             u"\U0001F800-\U0001F8FF"  # Supplemental Arrows-C
+#                             u"\U0001F900-\U0001F9FF"  # Supplemental Symbols and Pictographs
+#                             u"\U0001FA00-\U0001FA6F"  # Chess Symbols
+#                             u"\U0001FA70-\U0001FAFF"  # Symbols and Pictographs Extended-A
+#                             u"\U00002702-\U000027B0"  # Dingbats
+#                             "]+", flags=re.UNICODE)
+#         if len(emoji_pattern.findall(row['Bio'])) > 3:
+#             value -= 5
+
+#         # Check if 'Bio' contains any suspicious keywords
+#         bio_lower = row['Bio'].lower()
+#         if any(keyword in bio_lower for keyword in sus_keywords):
+#             value -= 10
+
+#         # Check the Followers/Following ratio
+#         if row['Followers'] > 0:
+#             ratio = row['Following'] / row['Followers']
+#             if ratio > 10:
+#                 value -= 10
+#             elif 3 <= ratio <= 10:
+#                 value -= 5
+
+#         # Check the number of Tweets
+#         if row['Tweets'] < 10:
+#             value -= 10
+#         elif 10 <= row['Tweets'] < 50:
+#             value -= 5
+
+#         # Check if 'Can_DM' is True
+#         if row['Can_DM']:
+#             value -= 5
+
+#         # Check the account age based on 'Joined_X'
+#         joined_date = pd.to_datetime(row['Joined_X'])
+#         age = relativedelta(datetime.now(), joined_date)
+#         if age.years < 1:
+#             if age.months < 6:
+#                 value -= 10
+#             elif 6 <= age.months <= 12:
+#                 value -= 5
+
+#         # Check if 'Location' is in Africa, India, or Pakistan
+#         africa_countries = ['Nigeria', 'South Africa', 'Egypt', 'Kenya', 'Ghana', 'Ethiopia', 'Tanzania', 'Uganda']
+#         asia_countries = ['India', 'Pakistan']
+
+#         geolocator = Nominatim(user_agent="geoapiExercises")
+#         location = row['Location']
+#         try:
+#             location_data = geolocator.geocode(location, language='en')
+#             if location_data:
+#                 country = location_data.address.split(',')[-1].strip()
+#                 if country in africa_countries or country in asia_countries:
+#                     value -= 5
+#         except:
+#             pass  # Ignore any errors in geolocation
+
+#         return value
+
+#     # Define a new scoring function
+#     def calculate_final_score(row):
+#         return scoring_factor * row['Raw_Score']
+
+#     # Reading the CSV file into a DataFrame
+#     df = pd.read_csv(f'rawProfiles_{patient_0_username}.csv')
+
+#     # Add a new column with a constant value
+#     df['Raw_Score'] = raw_score
+
+#     # Apply deduction based on criteria
+#     df['Raw_Score'] = df.apply(apply_deduction, axis=1)
+
+#     # Apply the new scoring function
+#     df['FinalScore'] = df.apply(calculate_final_score, axis=1)
+
+#     #print(df)
