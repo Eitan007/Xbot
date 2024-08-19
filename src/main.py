@@ -1,4 +1,5 @@
 #import all packages
+import customtkinter
 from twikit import Client, TooManyRequests
 import asyncio
 import time
@@ -13,6 +14,15 @@ from dateutil.relativedelta import relativedelta
 from geopy.geocoders import Nominatim
 import os
 import sys
+from threading import Thread
+
+# UI colors
+first_color = "#030e23"
+light_first_color = '#071633'
+second_color = "#5cfa7c"
+third_color = '#edfef8'
+red_color = '#4A0404'
+
 
 #primary variables
 patient_0_ID = ''
@@ -34,6 +44,20 @@ following_list = None
 follower_list = None
 no_of_follower_profiles = 0
 
+
+# Define PrintRedirector class
+class DualOutput:
+    def __init__(self, widget):
+        self.widget = widget
+        self.original_stdout = sys.stdout  # Save the original standard output
+
+    def write(self, text):
+        self.widget.insert(customtkinter.END, text)  # Write to the Tkinter text box
+        self.widget.see(customtkinter.END)  # Auto-scroll to the end
+        self.original_stdout.write(text)  # Write to the terminal
+
+    def flush(self):
+        pass  # Required for Python compatibility
 
 # Main function to run the asynchronous code
 async def login_save_cookies(client, username, email, password):
@@ -91,7 +115,7 @@ def create_CSVs(name, type):
 
 def random_wait():
     wait_time = randint(5, 10)
-    print(f'Waiting for {wait_time} seconds..')
+    print_(f'Waiting for {wait_time} seconds..')
     time.sleep(wait_time)
 
 def count_csv_entries(name, type):
@@ -106,7 +130,7 @@ def count_csv_entries(name, type):
     return row_count
 
 def filter_profiles_by_Followers_following(user, profile_list):
-    #print(profile_list)
+    #print_(profile_list)
     if profile_list is not None:
         if len(profile_list) > 0:
             for follower in profile_list:
@@ -139,8 +163,8 @@ async def get_patient_0():
                 Results_and_query = search_for_profile()    # A REQUEST
             except TooManyRequests as e:
                 limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
-                print(f'Rate limit reached - {datetime.now()}')
-                print(f'Waiting until - {limit_reset}')
+                print_(f'Rate limit reached - {datetime.now()}')
+                print_(f'Waiting until - {limit_reset}')
                 wait_time = limit_reset - datetime.now()
                 time.sleep(wait_time.total_seconds())
                 continue
@@ -159,8 +183,8 @@ async def get_patient_0():
                     user_profile_results = await user_profile_results.next()  # A REQUEST
                 except TooManyRequests as e:
                     limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
-                    print(f'Rate limit reached - {datetime.now()}')
-                    print(f'Waiting until - {limit_reset}')
+                    print_(f'Rate limit reached - {datetime.now()}')
+                    print_(f'Waiting until - {limit_reset}')
                     wait_time = limit_reset - datetime.now()
                     time.sleep(wait_time.total_seconds())
                     continue
@@ -176,46 +200,26 @@ async def get_patient_0():
                     patient_0_username = user.screen_name
                     # after finding user, stop asking operator for username
                     ask_for_username = False
-                    print(f'{query}: USER PROFILE FOUND')
-                    print(patient_0_ID)
-                    print(patient_0_username)
-                    print(vars(user))
+                    print_(f'{query}: USER PROFILE FOUND')
+                    print_(patient_0_ID)
+                    print_(patient_0_username)
+                    print_(vars(user))
 
                     #create csv to store raw data
                     create_CSVs(query, 'raw')
                     break
             if ask_for_username:
-                print(f"{query}: results don't match username")
-                print(f"{query}: getting next results page")
+                print_(f"{query}: results don't match username")
+                print_(f"{query}: getting next results page")
 
         else:
             no_Results = True
-            print(f"{query}: PROFILE NOT FOUND")
-            print(f"{query}: TRY ANOTHER USERNAME")
-
-async def get_user_by_username(client):
-    user = None
-    while True:
-        username = input('Type in username: ').lower()
-        random_wait()
-        print('getting username')
-        try:
-            user = await client.get_user_by_screen_name(username) # REQUEST
-        except TooManyRequests as e:
-                    limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
-                    print(f'Rate limit reached - {datetime.now()}')
-                    print(f'Waiting until - {limit_reset}')
-                    wait_time = limit_reset - datetime.now()
-                    time.sleep(wait_time.total_seconds())
-                    continue
-
-        if user is not None:
-            break
-    return user
+            print_(f"{query}: PROFILE NOT FOUND")
+            print_(f"{query}: TRY ANOTHER USERNAME")
 
 # retrieve user's followers in safe batches and save to csv
 async def get_user_follower(user):
-    print(f'{user.screen_name}: GETTING FOLLOWERS')
+    print_(f'{user.screen_name}: GETTING FOLLOWERS')
     global follower_list
     global no_of_follower_profiles
     while True:
@@ -228,8 +232,8 @@ async def get_user_follower(user):
                 follower_list = await user.get_followers() # REQUEST
             except TooManyRequests as e:
                 limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
-                print(f'Rate limit reached - {datetime.now()}')
-                print(f'Waiting until - {limit_reset}')
+                print_(f'Rate limit reached - {datetime.now()}')
+                print_(f'Waiting until - {limit_reset}')
                 wait_time = limit_reset - datetime.now()
                 time.sleep(wait_time.total_seconds())
                 continue
@@ -241,12 +245,12 @@ async def get_user_follower(user):
                 # try getting next results
                 random_wait()
                 try:
-                    print(f'{user.screen_name}: retrieving next batch of profiles')
+                    print_(f'{user.screen_name}: retrieving next batch of profiles')
                     follower_list = await follower_list.next() # REQUEST
                 except TooManyRequests as e:
                     limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
-                    print(f'Rate limit reached - {datetime.now()}')
-                    print(f'Waiting until - {limit_reset}')
+                    print_(f'Rate limit reached - {datetime.now()}')
+                    print_(f'Waiting until - {limit_reset}')
                     wait_time = limit_reset - datetime.now()
                     time.sleep(wait_time.total_seconds())
                     continue
@@ -254,7 +258,7 @@ async def get_user_follower(user):
             # if there are no more users
             else:
                 no_of_follower_profiles = count_csv_entries(user.screen_name, 'raw')
-                print(f'{user.screen_name}: {no_of_follower_profiles} Profiles collected')
+                print_(f'{user.screen_name}: {no_of_follower_profiles} Profiles collected')
                 break
         
         # add to filtered users to csv
@@ -262,7 +266,7 @@ async def get_user_follower(user):
 
 # retrieve user's followers in safe batches and save to csv
 async def get_user_following(user):
-    print(f'{user.screen_name}: GETTING FOLLOWINGS')
+    print_(f'{user.screen_name}: GETTING FOLLOWINGS')
     global following_list
     global no_of_follower_profiles
     while True:
@@ -275,8 +279,8 @@ async def get_user_following(user):
                 following_list = await user.get_following() # REQUEST
             except TooManyRequests as e:
                 limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
-                print(f'Rate limit reached - {datetime.now()}')
-                print(f'Waiting until - {limit_reset}')
+                print_(f'Rate limit reached - {datetime.now()}')
+                print_(f'Waiting until - {limit_reset}')
                 wait_time = limit_reset - datetime.now()
                 time.sleep(wait_time.total_seconds())
                 continue
@@ -288,12 +292,12 @@ async def get_user_following(user):
                 # try getting next results
                 random_wait()
                 try:
-                    print(f'{user.screen_name}: retrieving next batch of profiles')
+                    print_(f'{user.screen_name}: retrieving next batch of profiles')
                     following_list = await following_list.next() # REQUEST
                 except TooManyRequests as e:
                     limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
-                    print(f'Rate limit reached - {datetime.now()}')
-                    print(f'Waiting until - {limit_reset}')
+                    print_(f'Rate limit reached - {datetime.now()}')
+                    print_(f'Waiting until - {limit_reset}')
                     wait_time = limit_reset - datetime.now()
                     time.sleep(wait_time.total_seconds())
                     continue
@@ -302,12 +306,52 @@ async def get_user_following(user):
             else:
                 no_of_all_profiles = count_csv_entries(user.screen_name, 'raw')
                 no_of_following_profiles = no_of_all_profiles - no_of_follower_profiles 
-                print(f'{user.screen_name}: {no_of_following_profiles} Profiles collected')
+                print_(f'{user.screen_name}: {no_of_following_profiles} Profiles collected')
                 break
         
         # add to filtered users to csv
         filter_profiles_by_Followers_following(user, following_list)
 
+
+async def get_user_by_username_old(client, username):
+    random_wait()
+    print_('getting username')
+    try:
+        user = await client.get_user_by_screen_name(username) # REQUEST
+    except TooManyRequests as e:
+                limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
+                print_(f'Rate limit reached - {datetime.now()}')
+                print_(f'Waiting until - {limit_reset}')
+                wait_time = limit_reset - datetime.now()
+                time.sleep(wait_time.total_seconds())
+                get_user_by_username(client, username)
+    except:
+        print_("didn't work chief")
+
+    return user
+
+
+async def get_user_by_username(client, username, max_retries=5):
+    retry_count = 0
+
+    while retry_count < max_retries:
+        try:
+            user = await client.get_user_by_screen_name(username)  # REQUEST
+            return user
+        except TooManyRequests as e:
+            limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
+            print_(f'Rate limit reached - {datetime.now()}')
+            print_(f'Waiting until - {limit_reset}')
+            wait_time = (limit_reset - datetime.now()).total_seconds()
+            time.sleep(wait_time)  # Use asyncio.sleep() for asynchronous delay
+            retry_count += 1
+        except Exception as e:
+            print_(f"Error occurred: {e}")
+            # You can choose to retry or break based on the exception type
+            retry_count += 1  # Increment retry count for non-rate limit errors
+    # If maximum retries are exhausted
+    print_("Max retries reached, request failed.")
+    raise("Trouble Getting User Profile")
 
 async def main():
 
@@ -329,14 +373,23 @@ async def main():
                             auth_info_2=email, 
                             password=password)
         client.save_cookies('cookies.json')
+
     else:
         load_cookies_0(client)
 
+    user_input = entry.get()
 
-
+    if len(user_input) < 0:
+        print_("Input a Username !")
+        return
+    
     # get patient_0
-    user =  await get_user_by_username(client)
-    print(f'''
+    try:
+        user =  await get_user_by_username(client, user_input)
+    except:
+        return
+    
+    print_(f'''
 USERNAME: {user.screen_name}
 DISPLAY NAME: {user.name}
 BIO: {user.description}
@@ -347,7 +400,7 @@ DATE JOINED: {user.created_at_datetime}
     # create csv to save raw data
     create_CSVs(user.screen_name, 'raw')
 
-    #print(vars(user))
+    #print_(vars(user))
 
     await get_user_follower(user)
 
@@ -356,12 +409,65 @@ DATE JOINED: {user.created_at_datetime}
     # Reading the CSV file into a DataFrame
     df = pd.read_csv(f'rawProfiles_{user.screen_name}.csv')
 
-    print(df)
+    print_(df)
+
+def start_bot():
+    asyncio.run(main())
+
+def RUN_():
+    # Start the long-running task in a separate thread
+    thread = Thread(target=start_bot)
+    thread.start()
+
+def print_(string):
+    text_box.configure(state=customtkinter.NORMAL)  
+    print(string)
+    text_box.configure(state=customtkinter.DISABLED)  
+
+
+# Initialize the main window
+customtkinter.set_appearance_mode('dark')
+customtkinter.set_default_color_theme('dark-blue')
+root = customtkinter.CTk(first_color)
+root.title("XBot")
+root.geometry('900x700')
+
+# Input bar for typing username
+label = customtkinter.CTkLabel(root, text="Enter Username:", text_color=third_color,)
+label.pack(pady=5)
+entry = customtkinter.CTkEntry(root, width=300, justify="center", text_color=third_color, font=('Helvetica', 16, 'bold'))
+entry.pack(pady=5)
+
+# Button to run the main function
+button = customtkinter.CTkButton(root, text="Run", command=RUN_)
+button.pack(pady=5)
+
+# Disabled text box for output
+text_box = customtkinter.CTkTextbox(root, height=550, width=800, fg_color=light_first_color)
+text_box.pack(pady=10)
+text_box.configure(state=customtkinter.DISABLED)  # Disable editing
 
 # Set default encoding to UTF-8
 sys.stdout.reconfigure(encoding='utf-8')
 
-asyncio.run(main())
+# set print log to display on app interface
+sys.stdout = DualOutput(text_box)
+
+# Start the main loop
+root.mainloop()
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -466,4 +572,4 @@ asyncio.run(main())
 #     # Apply the new scoring function
 #     df['FinalScore'] = df.apply(calculate_final_score, axis=1)
 
-#     #print(df)
+#     #print_(df)
