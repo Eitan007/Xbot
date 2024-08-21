@@ -17,7 +17,7 @@ import os
 import sys
 from threading import Thread
 
-
+use_cursor = False
 progress_var = 0
 calculating_Progress = 0
 followers_Progress = 0
@@ -158,6 +158,7 @@ def create_CSVs(name, type):
             writer = csv.writer(file)
             writer.writerow(['Name', 'Username', 'URL', 'Followers', 'Following', 'Tweets', 'Bio','Can_DM','Location', 'Joined_X', 'Translator', 'Likes', 'Blue_Tick', 'Profile_Pic'])
 
+
     if type == 'fine':
             with open(f'Profiles_{name}.csv', 'w', newline='', encoding='utf-8') as file:
                 writer = csv.writer(file)
@@ -290,9 +291,12 @@ async def get_patient_0():
 async def get_user_follower(user):
     global progress_var
     print_(f'\n\n{user.screen_name}: GETTING FOLLOWERS')
-    
+    global use_cursor
     global follower_list
     global no_of_follower_profiles
+    
+    next_button = load_cursor(user.screen_name, 'followers')
+    print_(f'Checkpoint: {next_button}')
     while True:
         if to_cancel:
             return
@@ -302,7 +306,12 @@ async def get_user_follower(user):
             # sleep before making request
             random_wait()
             try:
-                follower_list = await user.get_followers() # REQUEST
+                if use_cursor:########### get from last check point
+                    if next_button is None:
+                        return
+                    follower_list = await client.get_user_followers(user.id, cursor=next_button)
+                else:
+                    follower_list = await user.get_followers() # REQUEST
             except TooManyRequests as e:
                 limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
                 print_(f'Rate limit reached - {datetime.now()}')
@@ -320,6 +329,10 @@ async def get_user_follower(user):
                 try:
                     print_(f'{user.screen_name}: retrieving next batch of profiles')
                     follower_list = await follower_list.next() # REQUEST
+
+                    #save next page for checkpoint reasons
+                    next_button = follower_list.next_cursor
+                    save_cursor(next_button, user.screen_name, 'followers')
                 except TooManyRequests as e:
                     limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
                     print_(f'Rate limit reached - {datetime.now()}')
@@ -333,7 +346,7 @@ async def get_user_follower(user):
                 no_of_follower_profiles = count_csv_entries(user.screen_name, 'raw')
                 print_(f'{user.screen_name}: {no_of_follower_profiles} Follower Profiles collected')
                 progress_var = 0
-                
+                clear_cursor(user.screen_name, 'followers')
                 break
         
         # add to filtered users to csv
@@ -345,6 +358,8 @@ async def get_user_following(user):
     print_(f'\n\n{user.screen_name}: GETTING FOLLOWINGS')
     global following_list
     global no_of_follower_profiles
+    next_button = load_cursor(user.screen_name, 'following')
+    print_(f'Checkpoint: {next_button}')
     while True:
         if to_cancel:
             return
@@ -355,7 +370,12 @@ async def get_user_following(user):
             # sleep before making request
             random_wait()
             try:
-                following_list = await user.get_following() # REQUEST
+                if use_cursor:########### get from last check point
+                    if next_button is None:
+                        return
+                    following_list = await client.get_user_following(user.id, cursor=next_button)
+                else:
+                    following_list = await user.get_following() # REQUEST
             except TooManyRequests as e:
                 limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
                 print_(f'Rate limit reached - {datetime.now()}')
@@ -373,6 +393,10 @@ async def get_user_following(user):
                 try:
                     print_(f'{user.screen_name}: retrieving next batch of profiles')
                     following_list = await following_list.next() # REQUEST
+                    
+                    #save next page for checkpoint reasons
+                    next_button = following_list.next_cursor
+                    save_cursor(next_button, user.screen_name, 'following')
                 except TooManyRequests as e:
                     limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
                     print_(f'Rate limit reached - {datetime.now()}')
@@ -385,8 +409,8 @@ async def get_user_following(user):
             else:
                 no_of_all_profiles = count_csv_entries(user.screen_name, 'raw')
                 no_of_following_profiles = no_of_all_profiles - no_of_follower_profiles 
-                print_(f'{user.screen_name}: {no_of_following_profiles} Following Profiles collected')
-
+                print_(f'{user.screen_name}: {no_of_following_profiles} Following Profiles collected\n\n')
+                clear_cursor(user.screen_name, 'following')
                 progress_var = 0
                 break
         
@@ -449,7 +473,7 @@ def scoring_algorithmn(df, user):
     # Add a new column with a constant value
     df['Raw_Score'] = raw_score
 
-    df['FinalScore'] = None
+    # df['FinalScore'] = None
     
     df['Joined_X'] = df['Joined_X'].astype(str)
 
@@ -459,12 +483,17 @@ def scoring_algorithmn(df, user):
     df['Raw_Score'] = df.apply(apply_deduction, axis=1)
 
     # Apply the new scoring function
-    #df['FinalScore'] = df.apply(calculate_final_score, axis=1)
+    df['FinalScore'] = df.apply(calculate_final_score, axis=1)
 
+    
     # create new dataframe containing specific columns
     final_df = df.drop(columns=
         ['Name', 'Bio','Can_DM','Location', 'Joined_X', 'Translator', 'Likes', 'Blue_Tick', 'Profile_Pic'])
     
+    # arrange in descending order of Final score
+    final_df = final_df.sort_values(by='FinalScore', ascending=False)
+
+
     # change director to save file in docs    
     os.chdir('../docs')
     if isinstance(user, str):
@@ -477,6 +506,8 @@ def scoring_algorithmn(df, user):
     # switch back to original_directory
     os.chdir(original_directory)
 
+    progress_text.configure(text="DONE", text_color='green', font=('Helvetica', 30, 'bold'))
+
     return final_df
 
 def reset_progress():
@@ -486,7 +517,7 @@ def reset_progress():
 
 # final score caculation
 def calculate_final_score(row):
-    return scoring_factor * row['Raw_Score']
+    return round(scoring_factor * row['Raw_Score'])
 
 # deduction criteria
 def apply_deduction(row):
@@ -632,7 +663,7 @@ def apply_deduction(row):
         print(e)
         print("error making date analysis")
 
-    row['FinalScore'] = scoring_factor * row['Raw_Score']
+    # row['FinalScore'] = scoring_factor * row['Raw_Score']
     progress_var += 1
     calculate_percentage_progress(progress_var, calculating_Progress)
 
@@ -669,17 +700,132 @@ FINAL RESULTS BELOW:
 
     print_('\n\nDONE.')
 
+def clear_cursor(name, type):
+
+    # Define the base directories
+    base_dir = os.getcwd()  # Gets the current working directory
+    if type == 'followers':
+        directory = os.path.join(base_dir, 'followers')
+    elif type == 'following':
+        directory = os.path.join(base_dir, 'following')
+    else:
+        raise ValueError("Invalid type. Must be 'followers' or 'following'.")
+
+    # Construct the file path
+    file_path = os.path.join(directory, f'next_button_{name}.txt')
+
+    # Ensure the directory exists
+    if not os.path.exists(directory):
+        # print(f"Directory does not exist: {directory}")
+        return
+
+    # Delete the file
+    try:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    except Exception as e:
+        print(f"An error occurred while deleting checkpoint file ({file_path}), try deleting manually: {e}")
+
+def save_cursor(cursor, name, type):
+    # Define the base directories
+    base_dir = os.getcwd()  # Gets the current working directory
+    if type == 'followers':
+        directory = os.path.join(base_dir, 'followers')
+    elif type == 'following':
+        directory = os.path.join(base_dir, 'following')
+    else:
+        raise ValueError("Invalid type. Must be 'followers' or 'following'.")
+
+    # Construct the file path
+    file_path = os.path.join(directory, f'next_button_{name}.txt')
+
+    # Ensure the directory exists
+    os.makedirs(directory, exist_ok=True)
+
+    # Write the cursor to the file
+    try:
+        with open(file_path, 'w') as f:
+            f.write(cursor)
+    except Exception as e:
+        print(f"An error occurred while writing the file: {e}")
+
+
+
+# def save_cursor(cursor, name, type):
+#     if type == 'followers':
+#         with open(f'/followers/next_button_{name}.txt', 'w') as f:
+#             f.write(cursor)
+
+#     if type == 'following':
+#         with open(f'/following/next_button_{name}.txt', 'w') as f:
+#             f.write(cursor)
+
+# load next button
+def load_cursor(name, type):
+    # Define the base directories
+    base_dir = os.getcwd()  # Gets the current working directory
+    if type == 'followers':
+        directory = os.path.join(base_dir, 'followers')
+    elif type == 'following':
+        directory = os.path.join(base_dir, 'following')
+    else:
+        raise ValueError("Invalid type. Must be 'followers' or 'following'.")
+
+
+
+    # Construct the file path
+    file_path = os.path.join(directory, f'next_button_{name}.txt')
+
+
+    # Ensure the directory exists
+    if not os.path.exists(file_path):
+        # print(f"Directory does not exist: {directory}")
+        return None
+
+
+    with open(file_path, 'r') as f:
+        return f.read().strip()
+
+
+
+    # try:
+    #     if type == 'followers':
+    #             with open(f'/followers/next_button_{name}.txt', 'r') as f:
+    #                 return f.read().strip()
+                
+    #     if type == 'following':
+    #             with open(f'/following/next_button_{name}.txt', 'r') as f:
+    #                 return f.read().strip()
+                
+    # except FileNotFoundError:
+    #     return None
+
+def restart_app():
+    # Restart the current script
+    python = sys.executable
+    os.execv(python, [python] + sys.argv)
 
 
 def RUN_(event=None):
     # Start the long-running task in a separate thread
     global thread
+    global use_cursor
     checkbox_state = checkbox_var.get()
+    checkpoint_state = checkpoint_var.get()
+
+    if checkbox_state and checkpoint_state:
+        print_("Uncheck one check box !")
+        return
 
     if checkbox_state:
         thread = Thread(target=start_bot_calculation)
         thread.start()        
         return
+    
+    if checkpoint_state:
+        use_cursor = True
+    else:
+        use_cursor = False
 
     thread = Thread(target=start_bot)
     thread.start()
@@ -784,7 +930,14 @@ def load_cookies_function():
     # logs into bot
     try:
         client.load_cookies('cookies.json')
+    
         info_label.configure(text="")
+        login_entry.delete(0,customtkinter.END)
+        email_entry.delete(0,customtkinter.END)
+        password_entry.delete(0,customtkinter.END)
+
+        test = asyncio.run(client.search_tweet('chatgpt','Top'))
+        
         print_("Logged In !")
     except Exception as e:
         print(e)
@@ -875,10 +1028,22 @@ button.grid(column=0, row=0, padx=10)
 cancel_button = customtkinter.CTkButton(button_frame, width=120, text="Cancel", fg_color='#6D1D1D', command=stop_thread, hover_color="#4A0000")
 cancel_button.grid(column=1, row=0, padx=10)
 
+# Button to restart
+restart_button = customtkinter.CTkButton(button_frame, width=120, text="Restart", fg_color='#6D1D1D', command=restart_app, hover_color="#4A0000") 
+restart_button.grid(column=3, row=0, padx=10)
+
+check_frame = customtkinter.CTkFrame(user_frame, bg_color="transparent",fg_color="transparent")
+check_frame.pack(pady=(20))
+
+checkpoint_var = customtkinter.BooleanVar()
+# Create a checkbox and link it to the BooleanVar
+checkpoint = customtkinter.CTkCheckBox(check_frame, text="start from checkpoint", variable=checkpoint_var, onvalue=True, offvalue=False)
+checkpoint.grid(column=0,row=0)
+
 checkbox_var = customtkinter.BooleanVar()
 # Create a checkbox and link it to the BooleanVar
-checkbox = customtkinter.CTkCheckBox(user_frame, text="Calculate from CSV", variable=checkbox_var, onvalue=True, offvalue=False)
-checkbox.pack(pady=(10, 5))
+checkbox = customtkinter.CTkCheckBox(check_frame, text="calculate from CSV", variable=checkbox_var, onvalue=True, offvalue=False)
+checkbox.grid(column=1,row=0, padx=(20,0))
 
 # Disabled text box for output
 text_box = customtkinter.CTkTextbox(log_frame, height=500, width=809, fg_color=light_first_color)
