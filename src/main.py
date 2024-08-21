@@ -165,7 +165,7 @@ def create_CSVs(name, type):
                 writer.writerow(['Username', 'Followers', 'Following', 'Tweets', 'URL'])
 
 def random_wait():
-    wait_time = randint(5, 10)
+    wait_time = randint(5,7)
     print_(f'Waiting for {wait_time} seconds..')
     time.sleep(wait_time)
 
