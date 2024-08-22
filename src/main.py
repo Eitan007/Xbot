@@ -18,6 +18,9 @@ import sys
 from threading import Thread
 
 
+
+
+
 # original working directory
 original_directory = os.getcwd()
 
@@ -170,7 +173,7 @@ class DualOutput:
 
 # software pause function
 def random_wait():
-    wait_time = randint(5,7)
+    wait_time = randint(4,7)
     print_(f'Waiting for {wait_time} seconds..')
     time.sleep(wait_time)
 
@@ -469,16 +472,32 @@ async def get_user_by_username_old(username):
 # create a CSV file
 def create_CSVs(name, type):
     #create csv file for scrapped data
+
+    # Define the base directories
     if type == 'raw':
-        with open(f'rawProfiles_{name}.csv', 'w', newline='', encoding='utf-8') as file:
+        base_dir = os.getcwd()  # Gets the current working directory
+        directory = os.path.join(base_dir, 'RawFiles')
+
+    elif type == 'fine':
+        os.chdir('../docs')
+        with open(f'Profiles_{name}.csv', 'w', newline='', encoding='utf-8') as file:
+            writer = csv.writer(file)
+            writer.writerow(['Username', 'Followers', 'Following', 'Tweets', 'URL'])
+        os.chdir(original_directory)
+        return
+
+    else:
+        raise ValueError("Invalid type. Must be 'followers' or 'following'.")
+
+    # Construct the file path
+    file_path = os.path.join(directory, f'rawProfiles_{name}.csv')
+
+    # Ensure the directory exists
+    os.makedirs(directory, exist_ok=True)
+
+    with open(file_path, 'w', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
             writer.writerow(['Name', 'Username', 'URL', 'Followers', 'Following', 'Tweets', 'Bio','Can_DM','Location', 'Joined_X', 'Translator', 'Likes', 'Blue_Tick', 'Profile_Pic'])
-
-
-    if type == 'fine':
-            with open(f'Profiles_{name}.csv', 'w', newline='', encoding='utf-8') as file:
-                writer = csv.writer(file)
-                writer.writerow(['Username', 'Followers', 'Following', 'Tweets', 'URL'])
 
 # add to an existing CSV file
 def append_data_to_csv(entries, name, type):
@@ -870,6 +889,7 @@ async def main():
     global following_Progress
     global calculating_Progress
     global to_cancel
+ 
     reset_progress()
     user_input = entry.get()
     if len(user_input) < 1:
