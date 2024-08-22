@@ -17,13 +17,18 @@ import os
 import sys
 from threading import Thread
 
-use_cursor = False
+
+# original working directory
+original_directory = os.getcwd()
+
+# UI variables
 progress_var = 0
 calculating_Progress = 0
 followers_Progress = 0
 following_Progress = 0
-# original working directory
-original_directory = os.getcwd()
+login_width = 430
+extractor_width = 660
+entry_width = 200
 
 # UI colors
 first_color = "#030e23"
@@ -32,11 +37,9 @@ second_color = "#5cfa7c"
 third_color = '#edfef8'
 red_color = '#4A0404'
 
-
 #primary variables
 patient_0_ID = ''
 patient_0_username = ''
-
 
 # scoring system constants
 raw_score = 90
@@ -46,7 +49,7 @@ scoring_factor = 1.1112
 follower_count_limit = 10000
 following_count_limit = 5000
 
-# logic variables
+# main function logic variables
 new_account = False
 ask_for_username = True
 no_Results = False
@@ -54,6 +57,7 @@ user_profile_results = None
 following_list = None
 follower_list = None
 no_of_follower_profiles = 0
+use_cursor = False
 to_cancel = False
 
 # Initialize the main window
@@ -64,30 +68,85 @@ root.title("XBot")
 root.geometry('1050x700')
 root.resizable(False, False)
 
-login_width = 430
-extractor_width = 660
-entry_width = 200
 
- # create client
+# create client
 client = Client(language='en-US')
 
 
 
-# # Define PrintRedirector class
-# class DualOutput:
-#     def __init__(self, widget):
-#         self.widget = widget
-#         self.original_stdout = sys.stdout  # Save the original standard output
+##################################################################################################################
 
-#     def write(self, text):
-#         self.widget.insert(customtkinter.END, text)  # Write to the Tkinter text box
-#         self.widget.see(customtkinter.END)  # Auto-scroll to the end
-#         self.original_stdout.write(text)  # Write to the terminal
+#   CLIENT AUTHENTICATION   #########################
 
-#     def flush(self):
-#         pass  # Required for Python compatibility
+# Login and save cookies
+async def login_save_cookies(client, username, email, password):
+    client = await login_user(client, username, email, password)
+    save_cookies_0(client)
 
-# Define DualOutput class for stdout and stderr
+# Define login function
+async def login_user(client, username, email, password):
+    await client.login(auth_info_1=username, 
+                       auth_info_2=email, 
+                       password=password)
+    return client
+
+# generate cookies function 
+def generate_cookies():
+    username_ = login_entry.get()
+    email_ = email_entry.get()
+    password_ = password_entry.get()
+    if len(username_) > 0 and len(email_) > 0 and len(password_) > 0:
+        #login and save cookies
+        try:
+            asyncio.run(client.login(auth_info_1=username_, 
+                                auth_info_2=email_, 
+                                password=password_))
+            client.save_cookies('cookies.json')
+
+            # tells user it is done
+            messagebox.showinfo("Generate Cookies", "Cookies generated!")
+        except Exception as e:
+            print(e)
+            info_label.configure(text="Login on Browser and Try again.")
+    else:
+        info_label.configure(text="Input all fields")
+
+# Saving cookies function
+def save_cookies_0(client, filename='cookies.json'):
+    # Assuming client.save_cookies is an async function
+    client.save_cookies(filename)
+
+# Load Cookies function
+def load_cookies_function():
+    # logs into bot
+    try:
+        client.load_cookies('cookies.json')
+    
+        info_label.configure(text="")
+        login_entry.delete(0,customtkinter.END)
+        email_entry.delete(0,customtkinter.END)
+        password_entry.delete(0,customtkinter.END)
+
+        test = asyncio.run(client.search_tweet('chatgpt','Top'))
+        
+        print_("Logged In !")
+    except Exception as e:
+        print(e)
+        info_label.configure(text="Please Generate Cookies")
+        return
+
+
+##################################################################################################################
+
+#   BOT BASE OPERATIONS   #########################
+
+# refreshes the software
+def restart_app():
+    # Restart the current script
+    python = sys.executable
+    os.execv(python, [python] + sys.argv)
+
+# DualOutput class for stdout and stderr
 class DualOutput:
     def __init__(self, widget):
         self.widget = widget
@@ -109,99 +168,19 @@ class DualOutput:
     def flush(self):
         pass  # Required for Python compatibility
 
-# Main function to run the asynchronous code
-async def login_save_cookies(client, username, email, password):
-    client = await login_user(client, username, email, password)
-    save_cookies_0(client)
-
-# Define your async function
-async def login_user(client, username, email, password):
-    await client.login(auth_info_1=username, 
-                       auth_info_2=email, 
-                       password=password)
-    return client
-
-# Define the function to handle saving cookies
-def save_cookies_0(client, filename='cookies.json'):
-    # Assuming client.save_cookies is an async function
-    client.save_cookies(filename)
-
-def load_cookies_0(client, filename='cookies.json'):
-    client.load_cookies(filename)
-
-async def search_user_0(client, query, count):
-    user_profile_results = await client.search_user(query, count)
-    #user_profile_results = await client.search_tweet(query,'Top', count)
-    return user_profile_results
-
-async def search_for_profile():
-    query = input('Type in username: ').lower()
-
-    user_profile_results = await search_user_0(query, 20)
-    return user_profile_results, query
-
-def append_data_to_csv(entries, name, type):
-    if type == 'raw':
-        with open(f'rawProfiles_{name}.csv', 'a', newline='', encoding='utf-8') as file:
-            writer = csv.writer(file)
-            writer.writerow(entries)
-
-    if type == 'fine':
-        with open(f'Profiles_{name}.csv', 'a', newline='', encoding='utf-8') as file:
-            writer = csv.writer(file)
-            writer.writerow(entries)
-
-def create_CSVs(name, type):
-    #create csv file for scrapped data
-    if type == 'raw':
-        with open(f'rawProfiles_{name}.csv', 'w', newline='', encoding='utf-8') as file:
-            writer = csv.writer(file)
-            writer.writerow(['Name', 'Username', 'URL', 'Followers', 'Following', 'Tweets', 'Bio','Can_DM','Location', 'Joined_X', 'Translator', 'Likes', 'Blue_Tick', 'Profile_Pic'])
-
-
-    if type == 'fine':
-            with open(f'Profiles_{name}.csv', 'w', newline='', encoding='utf-8') as file:
-                writer = csv.writer(file)
-                writer.writerow(['Username', 'Followers', 'Following', 'Tweets', 'URL'])
-
+# software pause function
 def random_wait():
     wait_time = randint(5,7)
     print_(f'Waiting for {wait_time} seconds..')
     time.sleep(wait_time)
 
-def count_csv_entries(name, type):
-    if type == 'raw':
-        with open(f'rawProfiles_{name}.csv', mode='r', encoding='utf-8') as file:
-            csv_reader = csv.reader(file)
-            row_count = sum(1 for row in csv_reader) - 1  
-    if type == 'fine':
-        with open(f'Profiles_{name}.csv', mode='r', encoding='utf-8') as file:
-            csv_reader = csv.reader(file)
-            row_count = sum(1 for row in csv_reader) - 1  
-    return row_count
+# software output function
+def print_(obj):
+    text_box.configure(state=customtkinter.NORMAL)  
+    print(obj)
+    text_box.configure(state=customtkinter.DISABLED)  
 
-def filter_profiles_by_Followers_following(user, profile_list, stage):
-    global progress_var
-    global followers_Progress
-    global following_Progress
-
-    #print_(profile_list)
-    if profile_list is not None:
-        if len(profile_list) > 0:
-            for follower in profile_list:
-                if follower.followers_count > follower_count_limit or follower.following_count > following_count_limit:
-                    continue
-                else:
-                    follower_url = f'https://x.com/{follower.screen_name}'
-                    user_data = [follower.name, follower.screen_name, follower_url, follower.followers_count, follower.following_count, follower.statuses_count, follower.description, follower.can_dm, follower.location, follower.created_at_datetime, follower.is_translator, follower.favourites_count, follower.is_blue_verified, follower.default_profile_image]
-                    append_data_to_csv(user_data, user.screen_name, 'raw')
-                progress_var += 1
-                if stage == 'followers':
-                    total = followers_Progress
-                elif stage == 'following':
-                    total = following_Progress
-                calculate_percentage_progress(progress_var, total)
-
+# progress update
 def calculate_percentage_progress(value_, total):
     if value_ > 0:
         x = int((value_/total)* 100)
@@ -210,9 +189,175 @@ def calculate_percentage_progress(value_, total):
             return
         progress_text.configure(text=f"{x}%", text_color='orange', font=('Helvetica', 30, 'bold'))
 
+# progress reset
+def reset_progress():
+    global progress_var
+    progress_var = 0
+    progress_text.configure(text='')
 
+
+##################################################################################################################
+
+#   NETWORK REQUESTS   #########################
+
+## USED ##
+# retrieve user by their username
+async def get_user_by_username(client, username, max_retries=5):
+    retry_count = 0
+
+    while retry_count < max_retries:
+        try:
+            user = await client.get_user_by_screen_name(username)  # REQUEST
+            return user
+        except TooManyRequests as e:
+            limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
+            print_(f'Rate limit reached - {datetime.now()}')
+            print_(f'Waiting until - {limit_reset}')
+            wait_time = (limit_reset - datetime.now()).total_seconds()
+            time.sleep(wait_time)  # Use asyncio.sleep() for asynchronous delay
+            retry_count += 1
+        except Exception as e:
+            print_(f"Error occurred: {e}")
+            # You can choose to retry or break based on the exception type
+            retry_count += 1  # Increment retry count for non-rate limit errors
+    # If maximum retries are exhausted
+    print_("Max retries reached, request failed.")
+    raise("Trouble Getting User Profile")
+
+# retrieve user's followers in safe batches and save to csv
+async def get_user_follower(user):
+    global progress_var
+    print_(f'\n\n{user.screen_name}: GETTING FOLLOWERS')
+    global use_cursor
+    global follower_list
+    global no_of_follower_profiles
+    
+    next_button = load_cursor(user.screen_name, 'followers')
+    print_(f'Checkpoint: {next_button}')
+    while True:
+        if to_cancel:
+            return
+        # NETWORK REQUEST
+        # first results search
+        if follower_list is None:
+            # sleep before making request
+            random_wait()
+            try:
+                if use_cursor:########### get from last check point
+                    if next_button is None:
+                        return
+                    follower_list = await client.get_user_followers(user.id, cursor=next_button)
+                else:
+                    follower_list = await user.get_followers() # REQUEST
+            except TooManyRequests as e:
+                limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
+                print_(f'Rate limit reached - {datetime.now()}')
+                print_(f'Waiting until - {limit_reset}')
+                wait_time = limit_reset - datetime.now()
+                time.sleep(wait_time.total_seconds())
+                continue
+
+        # getting next page
+        else:
+            # check if previous search results had users
+            if len(follower_list) > 0:
+                # try getting next results
+                random_wait()
+                try:
+                    print_(f'{user.screen_name}: retrieving next batch of profiles')
+                    follower_list = await follower_list.next() # REQUEST
+
+                    #save next page for checkpoint reasons
+                    next_button = follower_list.next_cursor
+                    save_cursor(next_button, user.screen_name, 'followers')
+                except TooManyRequests as e:
+                    limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
+                    print_(f'Rate limit reached - {datetime.now()}')
+                    print_(f'Waiting until - {limit_reset}')
+                    wait_time = limit_reset - datetime.now()
+                    time.sleep(wait_time.total_seconds())
+                    continue
+
+            # if there are no more users
+            else:
+                no_of_follower_profiles = count_csv_entries(user.screen_name, 'raw')
+                print_(f'{user.screen_name}: {no_of_follower_profiles} Follower Profiles collected')
+                progress_var = 0
+                clear_cursor(user.screen_name, 'followers')
+                break
+        
+        # add to filtered users to csv
+        filter_profiles_by_size(user, follower_list, 'followers')
+
+# retrieve user's followers in safe batches and save to csv
+async def get_user_following(user):
+    global progress_var
+    print_(f'\n\n{user.screen_name}: GETTING FOLLOWINGS')
+    global following_list
+    global no_of_follower_profiles
+    next_button = load_cursor(user.screen_name, 'following')
+    print_(f'Checkpoint: {next_button}')
+    while True:
+        if to_cancel:
+            return
+
+        # NETWORK REQUEST
+        # first results search
+        if following_list is None:
+            # sleep before making request
+            random_wait()
+            try:
+                if use_cursor:########### get from last check point
+                    if next_button is None:
+                        return
+                    following_list = await client.get_user_following(user.id, cursor=next_button)
+                else:
+                    following_list = await user.get_following() # REQUEST
+            except TooManyRequests as e:
+                limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
+                print_(f'Rate limit reached - {datetime.now()}')
+                print_(f'Waiting until - {limit_reset}')
+                wait_time = limit_reset - datetime.now()
+                time.sleep(wait_time.total_seconds())
+                continue
+
+        # getting next page
+        else:
+            # check if previous search results had users
+            if len(following_list) > 0:
+                # try getting next results
+                random_wait()
+                try:
+                    print_(f'{user.screen_name}: retrieving next batch of profiles')
+                    following_list = await following_list.next() # REQUEST
+                    
+                    #save next page for checkpoint reasons
+                    next_button = following_list.next_cursor
+                    save_cursor(next_button, user.screen_name, 'following')
+                except TooManyRequests as e:
+                    limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
+                    print_(f'Rate limit reached - {datetime.now()}')
+                    print_(f'Waiting until - {limit_reset}')
+                    wait_time = limit_reset - datetime.now()
+                    time.sleep(wait_time.total_seconds())
+                    continue
+
+            # if there are no more users
+            else:
+                no_of_all_profiles = count_csv_entries(user.screen_name, 'raw')
+                no_of_following_profiles = no_of_all_profiles - no_of_follower_profiles 
+                print_(f'{user.screen_name}: {no_of_following_profiles} Following Profiles collected\n\n')
+                clear_cursor(user.screen_name, 'following')
+                progress_var = 0
+                break
+        
+        # add to filtered users to csv
+        filter_profiles_by_size(user, following_list, 'following')
+
+
+## UN-USED ##
 # searches for first user and gets ID
-async def get_patient_0():
+async def get_patient_0_ID():
     global patient_0_ID
     global patient_0_username
 
@@ -287,138 +432,19 @@ async def get_patient_0():
             print_(f"{query}: PROFILE NOT FOUND")
             print_(f"{query}: TRY ANOTHER USERNAME")
 
-# retrieve user's followers in safe batches and save to csv
-async def get_user_follower(user):
-    global progress_var
-    print_(f'\n\n{user.screen_name}: GETTING FOLLOWERS')
-    global use_cursor
-    global follower_list
-    global no_of_follower_profiles
-    
-    next_button = load_cursor(user.screen_name, 'followers')
-    print_(f'Checkpoint: {next_button}')
-    while True:
-        if to_cancel:
-            return
-        # NETWORK REQUEST
-        # first results search
-        if follower_list is None:
-            # sleep before making request
-            random_wait()
-            try:
-                if use_cursor:########### get from last check point
-                    if next_button is None:
-                        return
-                    follower_list = await client.get_user_followers(user.id, cursor=next_button)
-                else:
-                    follower_list = await user.get_followers() # REQUEST
-            except TooManyRequests as e:
-                limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
-                print_(f'Rate limit reached - {datetime.now()}')
-                print_(f'Waiting until - {limit_reset}')
-                wait_time = limit_reset - datetime.now()
-                time.sleep(wait_time.total_seconds())
-                continue
+# Search for user via query function
+async def search_for_profile():
+    query = input('Type in username: ').lower()
+    user_profile_results = await client.search_user(query, count=20, cursor=None)
+    return user_profile_results, query
 
-        # getting next page
-        else:
-            # check if previous search results had users
-            if len(follower_list) > 0:
-                # try getting next results
-                random_wait()
-                try:
-                    print_(f'{user.screen_name}: retrieving next batch of profiles')
-                    follower_list = await follower_list.next() # REQUEST
+# Search for user via query function
+async def search_for_tweet():
+    query = input('Type in username: ').lower()
+    user_profile_results = await client.search_tweet(query,'Top', count=20, cursor=None)
+    return user_profile_results, query
 
-                    #save next page for checkpoint reasons
-                    next_button = follower_list.next_cursor
-                    save_cursor(next_button, user.screen_name, 'followers')
-                except TooManyRequests as e:
-                    limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
-                    print_(f'Rate limit reached - {datetime.now()}')
-                    print_(f'Waiting until - {limit_reset}')
-                    wait_time = limit_reset - datetime.now()
-                    time.sleep(wait_time.total_seconds())
-                    continue
-
-            # if there are no more users
-            else:
-                no_of_follower_profiles = count_csv_entries(user.screen_name, 'raw')
-                print_(f'{user.screen_name}: {no_of_follower_profiles} Follower Profiles collected')
-                progress_var = 0
-                clear_cursor(user.screen_name, 'followers')
-                break
-        
-        # add to filtered users to csv
-        filter_profiles_by_Followers_following(user, follower_list, 'followers')
-
-# retrieve user's followers in safe batches and save to csv
-async def get_user_following(user):
-    global progress_var
-    print_(f'\n\n{user.screen_name}: GETTING FOLLOWINGS')
-    global following_list
-    global no_of_follower_profiles
-    next_button = load_cursor(user.screen_name, 'following')
-    print_(f'Checkpoint: {next_button}')
-    while True:
-        if to_cancel:
-            return
-
-        # NETWORK REQUEST
-        # first results search
-        if following_list is None:
-            # sleep before making request
-            random_wait()
-            try:
-                if use_cursor:########### get from last check point
-                    if next_button is None:
-                        return
-                    following_list = await client.get_user_following(user.id, cursor=next_button)
-                else:
-                    following_list = await user.get_following() # REQUEST
-            except TooManyRequests as e:
-                limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
-                print_(f'Rate limit reached - {datetime.now()}')
-                print_(f'Waiting until - {limit_reset}')
-                wait_time = limit_reset - datetime.now()
-                time.sleep(wait_time.total_seconds())
-                continue
-
-        # getting next page
-        else:
-            # check if previous search results had users
-            if len(following_list) > 0:
-                # try getting next results
-                random_wait()
-                try:
-                    print_(f'{user.screen_name}: retrieving next batch of profiles')
-                    following_list = await following_list.next() # REQUEST
-                    
-                    #save next page for checkpoint reasons
-                    next_button = following_list.next_cursor
-                    save_cursor(next_button, user.screen_name, 'following')
-                except TooManyRequests as e:
-                    limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
-                    print_(f'Rate limit reached - {datetime.now()}')
-                    print_(f'Waiting until - {limit_reset}')
-                    wait_time = limit_reset - datetime.now()
-                    time.sleep(wait_time.total_seconds())
-                    continue
-
-            # if there are no more users
-            else:
-                no_of_all_profiles = count_csv_entries(user.screen_name, 'raw')
-                no_of_following_profiles = no_of_all_profiles - no_of_follower_profiles 
-                print_(f'{user.screen_name}: {no_of_following_profiles} Following Profiles collected\n\n')
-                clear_cursor(user.screen_name, 'following')
-                progress_var = 0
-                break
-        
-        # add to filtered users to csv
-        filter_profiles_by_Followers_following(user, following_list, 'following')
-
-
-async def get_user_by_username_old(client, username):
+async def get_user_by_username_old(username):
     random_wait()
     print_('getting username')
     try:
@@ -436,38 +462,127 @@ async def get_user_by_username_old(client, username):
     return user
 
 
-async def get_user_by_username(client, username, max_retries=5):
-    retry_count = 0
+##################################################################################################################
 
-    while retry_count < max_retries:
-        try:
-            user = await client.get_user_by_screen_name(username)  # REQUEST
-            return user
-        except TooManyRequests as e:
-            limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
-            print_(f'Rate limit reached - {datetime.now()}')
-            print_(f'Waiting until - {limit_reset}')
-            wait_time = (limit_reset - datetime.now()).total_seconds()
-            time.sleep(wait_time)  # Use asyncio.sleep() for asynchronous delay
-            retry_count += 1
-        except Exception as e:
-            print_(f"Error occurred: {e}")
-            # You can choose to retry or break based on the exception type
-            retry_count += 1  # Increment retry count for non-rate limit errors
-    # If maximum retries are exhausted
-    print_("Max retries reached, request failed.")
-    raise("Trouble Getting User Profile")
+#   STORAGE OPERATIONS   #########################
 
-def print_(obj):
-    text_box.configure(state=customtkinter.NORMAL)  
-    print(obj)
-    text_box.configure(state=customtkinter.DISABLED)  
+# create a CSV file
+def create_CSVs(name, type):
+    #create csv file for scrapped data
+    if type == 'raw':
+        with open(f'rawProfiles_{name}.csv', 'w', newline='', encoding='utf-8') as file:
+            writer = csv.writer(file)
+            writer.writerow(['Name', 'Username', 'URL', 'Followers', 'Following', 'Tweets', 'Bio','Can_DM','Location', 'Joined_X', 'Translator', 'Likes', 'Blue_Tick', 'Profile_Pic'])
 
 
-# Scoring Functions
+    if type == 'fine':
+            with open(f'Profiles_{name}.csv', 'w', newline='', encoding='utf-8') as file:
+                writer = csv.writer(file)
+                writer.writerow(['Username', 'Followers', 'Following', 'Tweets', 'URL'])
 
-# SCORING SCRIPT
-# Define deduction criteria with multiple conditions
+# add to an existing CSV file
+def append_data_to_csv(entries, name, type):
+    if type == 'raw':
+        with open(f'rawProfiles_{name}.csv', 'a', newline='', encoding='utf-8') as file:
+            writer = csv.writer(file)
+            writer.writerow(entries)
+
+    if type == 'fine':
+        with open(f'Profiles_{name}.csv', 'a', newline='', encoding='utf-8') as file:
+            writer = csv.writer(file)
+            writer.writerow(entries)
+
+# count items in a CSV file
+def count_csv_entries(name, type):
+    if type == 'raw':
+        with open(f'rawProfiles_{name}.csv', mode='r', encoding='utf-8') as file:
+            csv_reader = csv.reader(file)
+            row_count = sum(1 for row in csv_reader) - 1  
+    if type == 'fine':
+        with open(f'Profiles_{name}.csv', mode='r', encoding='utf-8') as file:
+            csv_reader = csv.reader(file)
+            row_count = sum(1 for row in csv_reader) - 1  
+    return row_count
+
+# save checkpoint
+def save_cursor(cursor, name, type):
+    # Define the base directories
+    base_dir = os.getcwd()  # Gets the current working directory
+    if type == 'followers':
+        directory = os.path.join(base_dir, 'followers')
+    elif type == 'following':
+        directory = os.path.join(base_dir, 'following')
+    else:
+        raise ValueError("Invalid type. Must be 'followers' or 'following'.")
+
+    # Construct the file path
+    file_path = os.path.join(directory, f'next_button_{name}.txt')
+
+    # Ensure the directory exists
+    os.makedirs(directory, exist_ok=True)
+
+    # Write the cursor to the file
+    try:
+        with open(file_path, 'w') as f:
+            f.write(cursor)
+    except Exception as e:
+        print(f"An error occurred while writing the file: {e}")
+
+# load checkpoint
+def load_cursor(name, type):
+    # Define the base directories
+    base_dir = os.getcwd()  # Gets the current working directory
+    if type == 'followers':
+        directory = os.path.join(base_dir, 'followers')
+    elif type == 'following':
+        directory = os.path.join(base_dir, 'following')
+    else:
+        raise ValueError("Invalid type. Must be 'followers' or 'following'.")
+
+    # Construct the file path
+    file_path = os.path.join(directory, f'next_button_{name}.txt')
+
+    # Ensure the directory exists
+    if not os.path.exists(file_path):
+        # print(f"Directory does not exist: {directory}")
+        return None
+
+    with open(file_path, 'r') as f:
+        return f.read().strip()
+
+# delete checkpoint
+def clear_cursor(name, type):
+
+    # Define the base directories
+    base_dir = os.getcwd()  # Gets the current working directory
+    if type == 'followers':
+        directory = os.path.join(base_dir, 'followers')
+    elif type == 'following':
+        directory = os.path.join(base_dir, 'following')
+    else:
+        raise ValueError("Invalid type. Must be 'followers' or 'following'.")
+
+    # Construct the file path
+    file_path = os.path.join(directory, f'next_button_{name}.txt')
+
+    # Ensure the directory exists
+    if not os.path.exists(directory):
+        # print(f"Directory does not exist: {directory}")
+        return
+
+    # Delete the file
+    try:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    except Exception as e:
+        print(f"An error occurred while deleting checkpoint file ({file_path}), try deleting manually: {e}")
+
+
+##################################################################################################################
+
+#   SCORING ALGORITHMN FUNCTIONS   #########################
+
+# Scoring Function
 def scoring_algorithmn(df, user):
     global progress_var    
     # Add a new column with a constant value
@@ -510,14 +625,28 @@ def scoring_algorithmn(df, user):
 
     return final_df
 
-def reset_progress():
+# filters out large accounts
+def filter_profiles_by_size(user, profile_list, stage):
     global progress_var
-    progress_var = 0
-    progress_text.configure(text='')
+    global followers_Progress
+    global following_Progress
 
-# final score caculation
-def calculate_final_score(row):
-    return round(scoring_factor * row['Raw_Score'])
+    #print_(profile_list)
+    if profile_list is not None:
+        if len(profile_list) > 0:
+            for follower in profile_list:
+                if follower.followers_count > follower_count_limit or follower.following_count > following_count_limit:
+                    continue
+                else:
+                    follower_url = f'https://x.com/{follower.screen_name}'
+                    user_data = [follower.name, follower.screen_name, follower_url, follower.followers_count, follower.following_count, follower.statuses_count, follower.description, follower.can_dm, follower.location, follower.created_at_datetime, follower.is_translator, follower.favourites_count, follower.is_blue_verified, follower.default_profile_image]
+                    append_data_to_csv(user_data, user.screen_name, 'raw')
+                progress_var += 1
+                if stage == 'followers':
+                    total = followers_Progress
+                elif stage == 'following':
+                    total = following_Progress
+                calculate_percentage_progress(progress_var, total)
 
 # deduction criteria
 def apply_deduction(row):
@@ -669,10 +798,45 @@ def apply_deduction(row):
 
     return value
 
-# main app functions
+# final score caculation
+def calculate_final_score(row):
+    return round(scoring_factor * row['Raw_Score'])
+
+
+##################################################################################################################
+
+#   EXECUTION FUCNTIONS   #########################
+
+# frontline execution (from the button's end, to initiate execution)
+def RUN_(event=None):
+    # Start the long-running task in a separate thread
+    global thread
+    global use_cursor
+    checkbox_state = checkbox_var.get()
+    checkpoint_state = checkpoint_var.get()
+
+    if checkbox_state and checkpoint_state:
+        print_("Uncheck one check box !")
+        return
+
+    if checkbox_state:
+        thread = Thread(target=start_bot_calculation)
+        thread.start()        
+        return
+    
+    if checkpoint_state:
+        use_cursor = True
+    else:
+        use_cursor = False
+
+    thread = Thread(target=start_bot)
+    thread.start()
+
+# middleline execution (to start from the beginning)
 def start_bot():
     asyncio.run(main())
 
+# middleline execution (to start scoring an available CSV)
 def start_bot_calculation():
     global calculating_Progress
     global to_cancel
@@ -700,136 +864,7 @@ FINAL RESULTS BELOW:
 
     print_('\n\nDONE.')
 
-def clear_cursor(name, type):
-
-    # Define the base directories
-    base_dir = os.getcwd()  # Gets the current working directory
-    if type == 'followers':
-        directory = os.path.join(base_dir, 'followers')
-    elif type == 'following':
-        directory = os.path.join(base_dir, 'following')
-    else:
-        raise ValueError("Invalid type. Must be 'followers' or 'following'.")
-
-    # Construct the file path
-    file_path = os.path.join(directory, f'next_button_{name}.txt')
-
-    # Ensure the directory exists
-    if not os.path.exists(directory):
-        # print(f"Directory does not exist: {directory}")
-        return
-
-    # Delete the file
-    try:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-    except Exception as e:
-        print(f"An error occurred while deleting checkpoint file ({file_path}), try deleting manually: {e}")
-
-def save_cursor(cursor, name, type):
-    # Define the base directories
-    base_dir = os.getcwd()  # Gets the current working directory
-    if type == 'followers':
-        directory = os.path.join(base_dir, 'followers')
-    elif type == 'following':
-        directory = os.path.join(base_dir, 'following')
-    else:
-        raise ValueError("Invalid type. Must be 'followers' or 'following'.")
-
-    # Construct the file path
-    file_path = os.path.join(directory, f'next_button_{name}.txt')
-
-    # Ensure the directory exists
-    os.makedirs(directory, exist_ok=True)
-
-    # Write the cursor to the file
-    try:
-        with open(file_path, 'w') as f:
-            f.write(cursor)
-    except Exception as e:
-        print(f"An error occurred while writing the file: {e}")
-
-
-
-# def save_cursor(cursor, name, type):
-#     if type == 'followers':
-#         with open(f'/followers/next_button_{name}.txt', 'w') as f:
-#             f.write(cursor)
-
-#     if type == 'following':
-#         with open(f'/following/next_button_{name}.txt', 'w') as f:
-#             f.write(cursor)
-
-# load next button
-def load_cursor(name, type):
-    # Define the base directories
-    base_dir = os.getcwd()  # Gets the current working directory
-    if type == 'followers':
-        directory = os.path.join(base_dir, 'followers')
-    elif type == 'following':
-        directory = os.path.join(base_dir, 'following')
-    else:
-        raise ValueError("Invalid type. Must be 'followers' or 'following'.")
-
-
-
-    # Construct the file path
-    file_path = os.path.join(directory, f'next_button_{name}.txt')
-
-
-    # Ensure the directory exists
-    if not os.path.exists(file_path):
-        # print(f"Directory does not exist: {directory}")
-        return None
-
-
-    with open(file_path, 'r') as f:
-        return f.read().strip()
-
-
-
-    # try:
-    #     if type == 'followers':
-    #             with open(f'/followers/next_button_{name}.txt', 'r') as f:
-    #                 return f.read().strip()
-                
-    #     if type == 'following':
-    #             with open(f'/following/next_button_{name}.txt', 'r') as f:
-    #                 return f.read().strip()
-                
-    # except FileNotFoundError:
-    #     return None
-
-def restart_app():
-    # Restart the current script
-    python = sys.executable
-    os.execv(python, [python] + sys.argv)
-
-
-def RUN_(event=None):
-    # Start the long-running task in a separate thread
-    global thread
-    global use_cursor
-    checkbox_state = checkbox_var.get()
-    checkpoint_state = checkpoint_var.get()
-
-    if checkbox_state and checkpoint_state:
-        print_("Uncheck one check box !")
-        return
-
-    if checkbox_state:
-        thread = Thread(target=start_bot_calculation)
-        thread.start()        
-        return
-    
-    if checkpoint_state:
-        use_cursor = True
-    else:
-        use_cursor = False
-
-    thread = Thread(target=start_bot)
-    thread.start()
-
+# backline execution (main execution flow)
 async def main():
     global followers_Progress
     global following_Progress
@@ -902,53 +937,12 @@ FINAL RESULTS BELOW:
 
     print_('\n\nDONE.')
 
-
-# function to generate cookies
-def generate_cookies():
-    username_ = login_entry.get()
-    email_ = email_entry.get()
-    password_ = password_entry.get()
-    if len(username_) > 0 and len(email_) > 0 and len(password_) > 0:
-        #login and save cookies
-        try:
-            asyncio.run(client.login(auth_info_1=username_, 
-                                auth_info_2=email_, 
-                                password=password_))
-            client.save_cookies('cookies.json')
-
-            # tells user it is done
-            messagebox.showinfo("Generate Cookies", "Cookies generated!")
-        except Exception as e:
-            print(e)
-            info_label.configure(text="Login on Browser and Try again.")
-    else:
-        info_label.configure(text="Input all fields")
-        
-
-# Function to handle the "Load Cookies" button click
-def load_cookies_function():
-    # logs into bot
-    try:
-        client.load_cookies('cookies.json')
-    
-        info_label.configure(text="")
-        login_entry.delete(0,customtkinter.END)
-        email_entry.delete(0,customtkinter.END)
-        password_entry.delete(0,customtkinter.END)
-
-        test = asyncio.run(client.search_tweet('chatgpt','Top'))
-        
-        print_("Logged In !")
-    except Exception as e:
-        print(e)
-        info_label.configure(text="Please Generate Cookies")
-        return
-    
-
+# frontline termination (from the button's end, to terminate on-going execution)
 def stop_thread(reset=None):
     global to_cancel
     to_cancel = True
 
+# backline termination (confirms from frontline, then terminates on-going execution)
 def check_if_to_stop():
     global to_cancel
     if to_cancel:
@@ -956,34 +950,29 @@ def check_if_to_stop():
     else:
         return False
 
-    
 
+##################################################################################################################
 
+#   USER INTERFACE LOOP   #########################
+
+#   LOGIN INTERFACE   ########
+# frame for generating cookies UI
 login_frame = customtkinter.CTkFrame(root, fg_color=first_color, width=login_width)
 login_frame.grid(column=0, row=0, padx=10)
 
-extractor_frame = customtkinter.CTkFrame(root, fg_color=first_color, width=extractor_width)
-extractor_frame.grid(column=1, row=0)
-
-user_frame = customtkinter.CTkFrame(extractor_frame, width=extractor_width)
-user_frame.grid(column=0, row=0, sticky='nsew')
-
-log_frame = customtkinter.CTkFrame(extractor_frame, fg_color=first_color, width=extractor_width)
-log_frame.grid(column=0, row=1)
-
-# Create and place the Login Bar
+# Create and place the Login Bar in the login_frame
 login_label = customtkinter.CTkLabel(login_frame, text="Login:")
 login_label.pack(pady=(10, 0))
 login_entry = customtkinter.CTkEntry(login_frame, width=entry_width, justify="center", text_color=third_color, font=('Helvetica', 16, 'bold'))
 login_entry.pack()
 
-# Create and place the Email Bar
+# Create and place the Email Bar in the login_frame
 email_label = customtkinter.CTkLabel(login_frame, text="Email:")
 email_label.pack(pady=(10, 0))
 email_entry = customtkinter.CTkEntry(login_frame, width=entry_width, justify="center", text_color=third_color, font=('Helvetica', 16, 'bold'))
 email_entry.pack()
 
-# Create and place the Password Bar
+# Create and place the Password Bar in the login_frame
 password_label = customtkinter.CTkLabel(login_frame, text="Password:")
 password_label.pack(pady=(10, 0))
 password_entry = customtkinter.CTkEntry(login_frame, width=entry_width, justify="center", text_color=third_color, show="#", font=('Helvetica', 16, 'bold'))
@@ -993,23 +982,33 @@ password_entry.pack()
 button_frame = customtkinter.CTkFrame(login_frame, width=login_width, fg_color=first_color)
 button_frame.pack(pady=(10, 0))
 
-# Create and place the Generate Cookies Button in the frame
+# Create and place the Generate Cookies Button in the button_frame
 generate_button = customtkinter.CTkButton(button_frame, text="Generate", width=100, command=generate_cookies)
 generate_button.pack(side=customtkinter.LEFT, padx=(0, 10))
 
-# Create and place the Load Cookies Button in the frame
+# Create and place the Load Cookies Button in the button_frame
 load_button = customtkinter.CTkButton(button_frame, text="Login", width=100, command=load_cookies_function)
 load_button.pack(side=customtkinter.LEFT)
 
+# create and place the info_text in the login_frame
 info_label = customtkinter.CTkLabel(login_frame, text="", text_color='orange', font=('Helvetica', 12, 'bold'))
 info_label.pack(pady=(10, 0))
 
+# create and place the progress_text in the login_frame
 progress_text = customtkinter.CTkLabel(login_frame, text="", text_color='orange', font=('Helvetica', 12, 'bold'))
 progress_text.pack(pady=(180, 0))
 
 
 
+#   EXTRACTION INTERFACE   ########
+# frame for extraction tool
+extractor_frame = customtkinter.CTkFrame(root, fg_color=first_color, width=extractor_width)
+extractor_frame.grid(column=1, row=0)
 
+###############
+# frame for username input and other parameters
+user_frame = customtkinter.CTkFrame(extractor_frame, width=extractor_width)
+user_frame.grid(column=0, row=0, sticky='nsew')
 
 # Input bar for typing username
 label = customtkinter.CTkLabel(user_frame, text="Enter Username:", text_color=third_color,)
@@ -1045,11 +1044,19 @@ checkbox_var = customtkinter.BooleanVar()
 checkbox = customtkinter.CTkCheckBox(check_frame, text="calculate from CSV", variable=checkbox_var, onvalue=True, offvalue=False)
 checkbox.grid(column=1,row=0, padx=(20,0))
 
+###############
+# frame for the log printout UI
+log_frame = customtkinter.CTkFrame(extractor_frame, fg_color=first_color, width=extractor_width)
+log_frame.grid(column=0, row=1)
+
 # Disabled text box for output
 text_box = customtkinter.CTkTextbox(log_frame, height=500, width=809, fg_color=light_first_color)
 text_box.pack(pady=(10, 0))
 text_box.configure(state=customtkinter.DISABLED)  # Disable editing
 
+###############
+
+# when enter is hit on the keyboard it run the software
 root.bind('<Return>', RUN_)
 
 # Set default encoding to UTF-8
@@ -1060,10 +1067,6 @@ sys.stdout = DualOutput(text_box)
 
 # Start the main loop
 root.mainloop()
-
-
-
-
 
 
 
