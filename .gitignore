@@ -4,5 +4,4 @@
 __pycache__/
 .DS_Store
 config.ini
-/Scraper API/
 src/cookies.json
