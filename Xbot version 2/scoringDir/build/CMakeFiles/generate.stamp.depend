@@ -1,0 +1,30 @@
+# CMake generation dependency list for this directory.
+C:/Users/USER/Desktop/Scraper API/scoringDir/CMakeLists.txt
+C:/Users/USER/Desktop/Scraper API/scoringDir/build/CMakeFiles/3.29.2/CMakeCCompiler.cmake
+C:/Users/USER/Desktop/Scraper API/scoringDir/build/CMakeFiles/3.29.2/CMakeCXXCompiler.cmake
+C:/Users/USER/Desktop/Scraper API/scoringDir/build/CMakeFiles/3.29.2/CMakeRCCompiler.cmake
+C:/Users/USER/Desktop/Scraper API/scoringDir/build/CMakeFiles/3.29.2/CMakeSystem.cmake
+C:/Users/USER/Desktop/Scraper API/scoringDir/src/xlnt/share/xlnt/XlntConfig.cmake
+C:/Users/USER/Desktop/Scraper API/scoringDir/src/xlnt/share/xlnt/XlntConfigVersion.cmake
+C:/Users/USER/Desktop/Scraper API/scoringDir/src/xlnt/share/xlnt/XlntTargets-debug.cmake
+C:/Users/USER/Desktop/Scraper API/scoringDir/src/xlnt/share/xlnt/XlntTargets-release.cmake
+C:/Users/USER/Desktop/Scraper API/scoringDir/src/xlnt/share/xlnt/XlntTargets.cmake
+C:/cmake-3.29.2-windows-i386/share/cmake-3.29/Modules/CMakeCInformation.cmake
+C:/cmake-3.29.2-windows-i386/share/cmake-3.29/Modules/CMakeCXXInformation.cmake
+C:/cmake-3.29.2-windows-i386/share/cmake-3.29/Modules/CMakeCommonLanguageInclude.cmake
+C:/cmake-3.29.2-windows-i386/share/cmake-3.29/Modules/CMakeGenericSystem.cmake
+C:/cmake-3.29.2-windows-i386/share/cmake-3.29/Modules/CMakeInitializeConfigs.cmake
+C:/cmake-3.29.2-windows-i386/share/cmake-3.29/Modules/CMakeLanguageInformation.cmake
+C:/cmake-3.29.2-windows-i386/share/cmake-3.29/Modules/CMakeRCInformation.cmake
+C:/cmake-3.29.2-windows-i386/share/cmake-3.29/Modules/CMakeSystemSpecificInformation.cmake
+C:/cmake-3.29.2-windows-i386/share/cmake-3.29/Modules/CMakeSystemSpecificInitialize.cmake
+C:/cmake-3.29.2-windows-i386/share/cmake-3.29/Modules/Compiler/CMakeCommonCompilerMacros.cmake
+C:/cmake-3.29.2-windows-i386/share/cmake-3.29/Modules/Compiler/MSVC-C.cmake
+C:/cmake-3.29.2-windows-i386/share/cmake-3.29/Modules/Compiler/MSVC-CXX.cmake
+C:/cmake-3.29.2-windows-i386/share/cmake-3.29/Modules/Compiler/MSVC.cmake
+C:/cmake-3.29.2-windows-i386/share/cmake-3.29/Modules/Platform/Windows-Initialize.cmake
+C:/cmake-3.29.2-windows-i386/share/cmake-3.29/Modules/Platform/Windows-MSVC-C.cmake
+C:/cmake-3.29.2-windows-i386/share/cmake-3.29/Modules/Platform/Windows-MSVC-CXX.cmake
+C:/cmake-3.29.2-windows-i386/share/cmake-3.29/Modules/Platform/Windows-MSVC.cmake
+C:/cmake-3.29.2-windows-i386/share/cmake-3.29/Modules/Platform/Windows.cmake
+C:/cmake-3.29.2-windows-i386/share/cmake-3.29/Modules/Platform/WindowsPaths.cmake

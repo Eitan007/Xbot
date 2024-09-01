@@ -1,0 +1,3 @@
+C:/Users/USER/Desktop/Scraper API/scoringDir/build/CMakeFiles/score_script.dir
+C:/Users/USER/Desktop/Scraper API/scoringDir/build/CMakeFiles/ALL_BUILD.dir
+C:/Users/USER/Desktop/Scraper API/scoringDir/build/CMakeFiles/ZERO_CHECK.dir

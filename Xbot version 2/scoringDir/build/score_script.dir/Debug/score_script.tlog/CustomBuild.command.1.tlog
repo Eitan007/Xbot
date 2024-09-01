@@ -1,0 +1,10 @@
+^C:\USERS\USER\DESKTOP\SCRAPER API\SCORINGDIR\CMAKELISTS.TXT
+setlocal
+C:\cmake-3.29.2-windows-i386\bin\cmake.exe "-SC:/Users/USER/Desktop/Scraper API/scoringDir" "-BC:/Users/USER/Desktop/Scraper API/scoringDir/build" --check-stamp-file "C:/Users/USER/Desktop/Scraper API/scoringDir/build/CMakeFiles/generate.stamp"
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

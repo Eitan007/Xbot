@@ -1,0 +1,20 @@
+{
+  "configurations": [
+    {
+      "name": "windows-gcc-x64",
+      "includePath": [
+        "${workspaceFolder}/**",
+        "C:/Users/USER/Desktop/vcpkg/installed/x64-windows-static/include",
+        "C:/Users/USER/Desktop/vcpkg/installed/x64-windows-static/include/xlnt"
+      ],
+      "compilerPath": "C:/MinGW/bin/gcc",
+      "cStandard": "${default}",
+      "cppStandard": "${default}",
+      "intelliSenseMode": "windows-gcc-x64",
+      "compilerArgs": [
+        ""
+      ]
+    }
+  ],
+  "version": 4
+}

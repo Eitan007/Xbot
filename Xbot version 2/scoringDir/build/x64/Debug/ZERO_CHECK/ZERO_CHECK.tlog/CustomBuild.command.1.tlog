@@ -1,0 +1,10 @@
+^C:\USERS\USER\DESKTOP\SCRAPER API\SCORINGDIR\BUILD\CMAKEFILES\D149EEC5AB972EFED760B52CC5A6C896\GENERATE.STAMP.RULE
+setlocal
+C:\cmake-3.29.2-windows-i386\bin\cmake.exe "-SC:/Users/USER/Desktop/Scraper API/scoringDir" "-BC:/Users/USER/Desktop/Scraper API/scoringDir/build" --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file "C:/Users/USER/Desktop/Scraper API/scoringDir/build/MyXlntScript.sln"
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

@@ -1,0 +1,32 @@
+here are the actual headers of the df:
+['Name', 'Username', 'URL', 'Followers', 'Following', 'Tweets', 'Can_DM', 'Bio','Location', 'Joined_X', 'Translator', 'Likes', 'Blue_Tick', 'Profile_Pic']
+
+modify the code to have the accurate if conditions in apply_deduction function, below are the conditions:
+
+sus_keywords = ['john doe', 'samuel', 'ctrader']
+
+if 'Username' in lower case contains any of the words in sus_keywords, deduct 10
+
+if  'Username' match regular expression for these samples (both upper and lower case) : (user12637y287188d8d8sb) or (user215557717612618), after the string "user" (from the sample) other characters do not have a specific length, and can be longer than expressed in the sample. if condition is satisfied, deducted 10
+
+if 'Bio' contains more than 3 emojis, deduct 5
+
+if 'Bio' in lower case contains any of the words in sus_keywords, deduct 10
+
+if (int)'Following'/(int)'Followers' is greater than 10, deduct 10
+
+if (int)'Following'/(int)'Followers' is less than or equal to 10 and greater than or equal to 3, deduct 5
+
+if 'Tweets' less than 10, deduct 10
+
+if 'Tweets' greater than or equal to than 10 and less than or greater 50, deduct 5
+
+if 'Can_DM' is True, deduct 5
+
+if 'Joined_X' converted to datetime is less than 6 months, deduct 10
+
+if 'Joined_X' converted to datetime is greater than  or equal to 6 months and less than or equal to 12 months, deduct 5
+
+if 'Location' is in africa or india or pakistan, deduct 5 (if there is a python package that make confirming location easier, please apply and append at the end of your reply, an elaboration of what the package is doing in the script)
+
+

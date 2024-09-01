@@ -16,6 +16,7 @@ from geopy.geocoders import Nominatim
 import os
 import sys
 from threading import Thread
+import subprocess
 
 
 
@@ -601,6 +602,30 @@ def clear_cursor(name, type):
 
 #   SCORING ALGORITHMN FUNCTIONS   #########################
 
+
+# filters out large accounts
+def filter_profiles_by_size(user, profile_list, stage):
+    global progress_var
+    global followers_Progress
+    global following_Progress
+
+    #print_(profile_list)
+    if profile_list is not None:
+        if len(profile_list) > 0:
+            for follower in profile_list:
+                if follower.followers_count > follower_count_limit or follower.following_count > following_count_limit:
+                    continue
+                else:
+                    follower_url = f'https://x.com/{follower.screen_name}'
+                    user_data = [follower.name, follower.screen_name, follower_url, follower.followers_count, follower.following_count, follower.statuses_count, follower.description, follower.can_dm, follower.location, follower.created_at_datetime, follower.is_translator, follower.favourites_count, follower.is_blue_verified, follower.default_profile_image]
+                    append_data_to_csv(user_data, user.screen_name, 'raw')
+                progress_var += 1
+                if stage == 'followers':
+                    total = followers_Progress
+                elif stage == 'following':
+                    total = following_Progress
+                calculate_percentage_progress(progress_var, total)
+
 # Scoring Function
 def scoring_algorithmn(df, user):
     global progress_var    
@@ -643,29 +668,6 @@ def scoring_algorithmn(df, user):
     progress_text.configure(text="DONE", text_color='green', font=('Helvetica', 30, 'bold'))
 
     return final_df
-
-# filters out large accounts
-def filter_profiles_by_size(user, profile_list, stage):
-    global progress_var
-    global followers_Progress
-    global following_Progress
-
-    #print_(profile_list)
-    if profile_list is not None:
-        if len(profile_list) > 0:
-            for follower in profile_list:
-                if follower.followers_count > follower_count_limit or follower.following_count > following_count_limit:
-                    continue
-                else:
-                    follower_url = f'https://x.com/{follower.screen_name}'
-                    user_data = [follower.name, follower.screen_name, follower_url, follower.followers_count, follower.following_count, follower.statuses_count, follower.description, follower.can_dm, follower.location, follower.created_at_datetime, follower.is_translator, follower.favourites_count, follower.is_blue_verified, follower.default_profile_image]
-                    append_data_to_csv(user_data, user.screen_name, 'raw')
-                progress_var += 1
-                if stage == 'followers':
-                    total = followers_Progress
-                elif stage == 'following':
-                    total = following_Progress
-                calculate_percentage_progress(progress_var, total)
 
 # deduction criteria
 def apply_deduction(row):
@@ -850,6 +852,17 @@ def RUN_(event=None):
 
     thread = Thread(target=start_bot)
     thread.start()
+    # try:
+    #     subprocess.run("./test.exe", stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, text=True)
+
+    #     # # Display captured output and errors in the Tkinter text widget
+    #     # if process.stdout:
+    #     #      print(process.stdout)  # This will go to the Tkinter text widget
+    #     # if process.stderr:
+    #     #     print(process.stderr)  # This will also go to the Tkinter t
+    # except Exception as e:
+    #     print(e)
+
 
 # middleline execution (to start from the beginning)
 def start_bot():
@@ -907,19 +920,19 @@ async def main():
 
     print_(f'''
            
-USERNAME: {user.screen_name}
+    USERNAME: {user.screen_name}
 
-DISPLAY NAME: {user.name}
+    DISPLAY NAME: {user.name}
 
-BIO: {user.description}
+    BIO: {user.description}
 
-FOLLOWERS: {user.followers_count}
+    FOLLOWERS: {user.followers_count}
 
-FOLLOWING: {user.following_count}
+    FOLLOWING: {user.following_count}
 
-DATE JOINED: {user.created_at_datetime}
+    DATE JOINED: {user.created_at_datetime}
 
-''')
+    ''')
     
     # create csv to save raw data
     create_CSVs(user.screen_name, 'raw')
@@ -1084,6 +1097,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 # set print log to display on app interface
 sys.stdout = DualOutput(text_box)
+sys.stderr = DualOutput(text_box)
 
 # Start the main loop
 root.mainloop()
