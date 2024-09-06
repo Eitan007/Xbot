@@ -84,11 +84,36 @@ client = Client(language='en-US')
 
 # Login and save cookies
 async def login_save_cookies(client, username, email, password):
+    '''
+    authenticate user and saves cookies
+
+    Parameters:
+    client (Twikit Client Obj): X account instance
+    username (string): Account username
+    email (string): Account email
+    password (string): Account password
+
+    Returns:
+    None
+    '''
+
     client = await login_user(client, username, email, password)
     save_cookies_0(client)
 
 # Define login function
 async def login_user(client, username, email, password):
+    '''
+    login user
+
+    Parameter:
+    client (Twikit Client Obj): X account instance
+    username (string): Account username
+    email (string): Account email
+    password (string): Account password
+
+    Returns:
+    client (Twikit Client Obj): authenticated X account instance
+    '''
     await client.login(auth_info_1=username, 
                        auth_info_2=email, 
                        password=password)
@@ -96,6 +121,12 @@ async def login_user(client, username, email, password):
 
 # generate cookies function 
 def generate_cookies():
+    '''
+    handles cookies generation after details are entered in UI
+
+    Returns:
+    None
+    '''
     username_ = login_entry.get()
     email_ = email_entry.get()
     password_ = password_entry.get()
@@ -117,11 +148,23 @@ def generate_cookies():
 
 # Saving cookies function
 def save_cookies_0(client, filename='cookies.json'):
+    '''
+    saves cookies to a json file
+
+    Returns:
+    None
+    '''
     # Assuming client.save_cookies is an async function
     client.save_cookies(filename)
 
 # Load Cookies function
 def load_cookies_function():
+    '''
+    logs in client using cookies
+
+    Returns:
+    None    
+    '''
     # logs into bot
     try:
         client.load_cookies('cookies.json')
@@ -146,18 +189,51 @@ def load_cookies_function():
 
 # refreshes the software
 def restart_app():
+    '''
+    closes old instance and initializes a new instance of software
+
+    Returns:
+    None
+    '''
     # Restart the current script
     python = sys.executable
     os.execv(python, [python] + sys.argv)
 
 # DualOutput class for stdout and stderr
 class DualOutput:
+    '''
+    A class to redirect stdout
+
+    Attributes:
+    widget (Tkinter Textbox Obj): textbox to print of log messages
+    original_stdout (io.TextIOWrapper Obj): standard output stream
+    original_stderr (io.TextIOWrapper Obj): standard error stream
+
+    Methods:
+    write(string): Writes to a Tkinter Textbox Obj
+    includes(string, list): Returns True if string is among list
+    '''
     def __init__(self, widget):
+        '''
+        Initializes a new instance of the DualOutput Class
+
+        Parameters:
+        widget (Tkinter Textbox Obj): textbox to print of log messages
+        '''
         self.widget = widget
         self.original_stdout = sys.stdout  # Save the original standard output
         self.original_stderr = sys.stderr  # Save the original standard error
 
     def write(self, text):
+        '''
+        Writes to a Tkinter Textbox Obj
+
+        Parameters:
+        text (string): text from a print() or error message
+
+        Returns:
+        None
+        '''
         self.widget.insert(customtkinter.END, text)  # Write to the Tkinter text box
         self.widget.see(customtkinter.END)  # Auto-scroll to the end
         word_list = ["Exception", "exception", "EXECEPTION", "Error", "error", "ERROR","Warning", "Warning", "WARNING"]
@@ -167,25 +243,57 @@ class DualOutput:
             self.original_stderr.write(text)  # Write to the terminal if stderr
 
     def includes(self, string_data, list_of_words):
-        return any(word in string_data for word in list_of_words)
+        '''
+        Returns True if string is among list
 
-    def flush(self):
-        pass  # Required for Python compatibility
+        Parameters:
+        string_data (string): text for a print() or error message
+        list_of_words (list): List of keywords to determine if error
+
+        Returns:
+        Boolean : True if string_data in list_of_words, False if otherwise
+        '''
+        return any(word in string_data for word in list_of_words)
 
 # software pause function
 def random_wait():
+    '''
+    Runs randomized sleep time
+
+    Returns:
+    None
+    '''
     wait_time = randint(4,7)
     print_(f'Waiting for {wait_time} seconds..')
     time.sleep(wait_time)
 
 # software output function
 def print_(obj):
+    '''
+    Disables and enables textbox for printing purposes
+
+    Parameters:
+    obj (string): text to be printed out
+
+    Returns:
+    None
+    '''
     text_box.configure(state=customtkinter.NORMAL)  
     print(obj)
     text_box.configure(state=customtkinter.DISABLED)  
 
 # progress update
 def calculate_percentage_progress(value_, total):
+    '''
+    Tracks progress of data extraction
+
+    Parameters:
+    value_ (int): current nmber of extracted profiles (followers or following)
+    total (int): total number of profiles (followers or following)
+
+    Returns:
+    None
+    '''
     if value_ > 0:
         x = int((value_/total)* 100)
         if x > 85:
@@ -195,6 +303,12 @@ def calculate_percentage_progress(value_, total):
 
 # progress reset
 def reset_progress():
+    '''
+    Resets progress after an extraction stage is complete
+    
+    Returns:
+    None
+    '''
     global progress_var
     progress_var = 0
     progress_text.configure(text='')
@@ -207,6 +321,17 @@ def reset_progress():
 ## USED ##
 # retrieve user by their username
 async def get_user_by_username(client, username, max_retries=5):
+    '''
+    Makes network request to get a profile based on username
+
+    Parameters:
+    client (Twikit Client Obj): X account instance
+    username (string): username to be extracted from
+    max_retries (int): number of network request attempts
+
+    Returns:
+    user (Twikit User Obj): Twikit user profile object
+    '''
     retry_count = 0
 
     while retry_count < max_retries:
@@ -230,6 +355,15 @@ async def get_user_by_username(client, username, max_retries=5):
 
 # retrieve user's followers in safe batches and save to csv
 async def get_user_follower(user):
+    '''
+    Retrieves a user's followers in batches
+
+    Parameters:
+    user (Twikit User Obj): Twikit User profile object being extracted from
+
+    Returns:
+    follower_list (Twikit Results Obj): list of user profile objects gotten from extraction
+    '''
     global progress_var
     print_(f'\n\n{user.screen_name}: GETTING FOLLOWERS')
     global use_cursor
@@ -295,6 +429,16 @@ async def get_user_follower(user):
 
 # retrieve user's followers in safe batches and save to csv
 async def get_user_following(user):
+    '''
+    Retrieves a user's following in batches
+
+    Parameters:
+    user (Twikit User Obj): Twikit user profile object being extracted from
+
+    Returns:
+    follower_list (Twikit Results Obj): list of user profile objects gotten from extraction
+    '''
+
     global progress_var
     print_(f'\n\n{user.screen_name}: GETTING FOLLOWINGS')
     global following_list
@@ -362,6 +506,13 @@ async def get_user_following(user):
 ## UN-USED ##
 # searches for first user and gets ID
 async def get_patient_0_ID():
+    '''
+    Searches for profile ID given a particular username
+
+    Returns:
+    patient_0_ID (string): user ID number 
+    '''
+
     global patient_0_ID
     global patient_0_username
 
@@ -438,17 +589,40 @@ async def get_patient_0_ID():
 
 # Search for user via query function
 async def search_for_profile():
+    '''
+    Searches particular username
+
+    Returns:
+    query (string): the query search with the network request
+    user_profile_results (Twikit Result Obj): list of profiles returned by the query
+    '''
     query = input('Type in username: ').lower()
     user_profile_results = await client.search_user(query, count=20, cursor=None)
     return user_profile_results, query
 
 # Search for user via query function
 async def search_for_tweet():
+    '''
+    Searches tweet
+
+    Returns:
+    query (string): the query search with the network request
+    tweet_results (Twikit Result Obj): list of profiles returned by the query
+    '''
     query = input('Type in username: ').lower()
-    user_profile_results = await client.search_tweet(query,'Top', count=20, cursor=None)
-    return user_profile_results, query
+    tweet_results = await client.search_tweet(query,'Top', count=20, cursor=None)
+    return tweet_results, query
 
 async def get_user_by_username_old(username):
+    '''
+    Makes network request to get a profile based on username
+
+    Parameters:
+    username (string): username input to profile information from
+
+    Returns:
+    user (Twikit User Obj): user oject containing profile information
+    '''
     random_wait()
     print_('getting username')
     try:
@@ -472,7 +646,16 @@ async def get_user_by_username_old(username):
 
 # create a CSV file
 def create_CSVs(name, type):
-    #create csv file for scrapped data
+    '''
+    Creates a csv file
+
+    Parameters:
+    name (string): name of csv file
+    type (string): type of columns to use
+
+    Returns:
+    None
+    '''
 
     # Define the base directories
     if type == 'raw':
@@ -502,6 +685,18 @@ def create_CSVs(name, type):
 
 # add to an existing CSV file
 def append_data_to_csv(entries, name, type):
+    '''
+    Appends to an exist csv
+
+    Parameters:
+    entries (list): row data to append
+    name (string): name of csv
+    type (string): type of columns the csv has
+
+    Returns:
+    None
+    '''
+
     if type == 'raw':
         with open(f'rawProfiles_{name}.csv', 'a', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
@@ -514,6 +709,16 @@ def append_data_to_csv(entries, name, type):
 
 # count items in a CSV file
 def count_csv_entries(name, type):
+    '''
+    counts number of entries on a csv
+
+    Parameters:
+    name (string): name of csv file
+    type (string): type of columns the csv has
+
+    Returns:
+    None
+    '''
     if type == 'raw':
         with open(f'rawProfiles_{name}.csv', mode='r', encoding='utf-8') as file:
             csv_reader = csv.reader(file)
@@ -526,6 +731,17 @@ def count_csv_entries(name, type):
 
 # save checkpoint
 def save_cursor(cursor, name, type):
+    '''
+    save next_page/cursor_ID of a Twikit Result Obj for checkpoint purposes
+
+    Parameters:
+    cursor (string): cursor ID
+    name (string): filename to save cursor ID
+    type (string): whether follower results or following results checkpoint
+
+    Returns:
+    None
+    '''
     # Define the base directories
     base_dir = os.getcwd()  # Gets the current working directory
     if type == 'followers':
@@ -550,6 +766,16 @@ def save_cursor(cursor, name, type):
 
 # load checkpoint
 def load_cursor(name, type):
+    '''
+    loads next_page/cursor_ID to start from checkpoint
+
+    Parameters:
+    name (string): filename to load from
+    type (string): whether follower results or following results checkpoint
+
+    Returns:
+    cursor (string): identifier of the next page
+    '''
     # Define the base directories
     base_dir = os.getcwd()  # Gets the current working directory
     if type == 'followers':
@@ -572,7 +798,16 @@ def load_cursor(name, type):
 
 # delete checkpoint
 def clear_cursor(name, type):
+    '''
+    clears the next_page/cursor_ID/checkpoint
 
+    Parameters:
+    name (string): filename to clear data from
+    type (string): whether follower results or following results checkpoint
+
+    Returns:
+    None
+    '''
     # Define the base directories
     base_dir = os.getcwd()  # Gets the current working directory
     if type == 'followers':
@@ -605,6 +840,17 @@ def clear_cursor(name, type):
 
 # filters out large accounts
 def filter_profiles_by_size(user, profile_list, stage):
+    '''
+    filters off profiles based on number of followers/following
+
+    Parameters:
+    user (Twikit User Obj): user profile whose followers and following are of interest
+    profile_list (Twikit Results Obj): Result list received from network request
+    stage (string): whether extraction stage is followers or following for progress tracking
+
+    Returns:
+    None
+    '''
     global progress_var
     global followers_Progress
     global following_Progress
@@ -628,6 +874,16 @@ def filter_profiles_by_size(user, profile_list, stage):
 
 # Scoring Function
 def scoring_algorithmn(df, user):
+    '''
+    Scoring system, removes points based off criteria per extracted followers and followings
+
+    Parameters:
+    df (Pandas DataFrame): dataframe containing followers and following profiles
+    user (Twikit User Obj): User which the profiles were extracted
+
+    Returns:
+    final_df (DataFrame)
+    '''
     global progress_var    
     # Add a new column with a constant value
     df['Raw_Score'] = raw_score
@@ -671,6 +927,15 @@ def scoring_algorithmn(df, user):
 
 # deduction criteria
 def apply_deduction(row):
+    '''
+    applies criteria for points removal
+
+    Parameters:
+    row (Pandas Dataframe row): a particualer entry in the dataframe (profile)
+
+    Return:
+    value(int): the final score for a profile
+    '''
     global calculating_Progress
     global progress_var
 
@@ -821,6 +1086,15 @@ def apply_deduction(row):
 
 # final score caculation
 def calculate_final_score(row):
+    '''
+    normalizes the final score to be between 0 adn 100 using a scoring factor (constant)
+
+    Parameters:
+    row (Pandas Dataframe row): a particualer entry in the dataframe (profile)
+    
+    Returns:
+    normalized final_score rounded to an integer
+    '''
     return round(scoring_factor * row['Raw_Score'])
 
 
@@ -830,6 +1104,13 @@ def calculate_final_score(row):
 
 # frontline execution (from the button's end, to initiate execution)
 def RUN_(event=None):
+    '''
+    starts the thread that runs the extraction
+
+    Returns:
+    None
+    '''
+
     # Start the long-running task in a separate thread
     global thread
     global use_cursor
@@ -852,24 +1133,27 @@ def RUN_(event=None):
 
     thread = Thread(target=start_bot)
     thread.start()
-    # try:
-    #     subprocess.run("./test.exe", stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, text=True)
-
-    #     # # Display captured output and errors in the Tkinter text widget
-    #     # if process.stdout:
-    #     #      print(process.stdout)  # This will go to the Tkinter text widget
-    #     # if process.stderr:
-    #     #     print(process.stderr)  # This will also go to the Tkinter t
-    # except Exception as e:
-    #     print(e)
 
 
 # middleline execution (to start from the beginning)
 def start_bot():
+    '''
+    function responsible for initializing the process asynchronously
+
+    Returns:
+    None
+    '''
     asyncio.run(main())
 
 # middleline execution (to start scoring an available CSV)
 def start_bot_calculation():
+    '''
+    retrieve already extracted data from a csv and run the scoring system on it
+
+    Returns:
+    None
+    '''
+
     global calculating_Progress
     global to_cancel
     reset_progress()
@@ -898,6 +1182,12 @@ FINAL RESULTS BELOW:
 
 # backline execution (main execution flow)
 async def main():
+    '''
+    main code flow
+
+    Returns:
+    None
+    '''    
     global followers_Progress
     global following_Progress
     global calculating_Progress
@@ -972,11 +1262,23 @@ FINAL RESULTS BELOW:
 
 # frontline termination (from the button's end, to terminate on-going execution)
 def stop_thread(reset=None):
+    '''
+    set a flag in to stop the extraction process
+
+    Returns:
+    None
+    '''
     global to_cancel
     to_cancel = True
 
 # backline termination (confirms from frontline, then terminates on-going execution)
 def check_if_to_stop():
+    '''
+    check if a stop extraction flag was set
+
+    Returns:
+    None 
+    '''
     global to_cancel
     if to_cancel:
         return True
